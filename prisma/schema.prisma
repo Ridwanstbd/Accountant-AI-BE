@@ -1,0 +1,152 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id          String @id @default(cuid())
+  code        String @unique
+  name        String
+  type        AccountType
+  category    String
+  balance     Decimal @default(0) @db.Decimal(15,2)
+  isActive    Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  debitEntries JournalEntry[] @relation("DebitAccount")
+  creditEntries JournalEntry[] @relation("CreditAccount")
+
+  @@map("accounts")
+}
+
+enum AccountType {
+   ASSET
+   LIABILITY
+   EQUITY
+   REVENUE
+   EXPENSE
+}
+
+
+model Journal {
+  id          String @id @default(cuid())
+  journalNo   String @unique
+  date        DateTime
+  reference   String?
+  type        JournalType
+  totalAmount Decimal @db.Decimal(15,2)
+  status      JournalStatus @default(DRAFT)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  entries     JournalEntry[]
+
+  @@map("journals")
+}
+
+model JournalEntry {
+  id          String @id @default(cuid())
+  journalId   String
+  debitAccountId String?
+  creditAccountId String?
+  description String
+  debitAmount Decimal @default(0) @db.Decimal(15,2)
+  creditAmount Decimal @default(0) @db.Decimal(15,2)
+  createdAt   DateTime @default(now())
+
+  journal     Journal @relation(fields: [journalId], references: [id], onDelete: Cascade )
+  debitAccount Account? @relation("DebitAccount",fields: [debitAccountId], references: [id])
+  creditAccount Account? @relation("CreditAccount", fields: [creditAccountId], references: [id])
+
+  @@map("journal_entries")
+}
+
+enum JournalType {
+  GENERAL
+  SALES
+  PURCHASE
+  PAYMENT
+}
+
+enum JournalStatus {
+  DRAFT
+  POSTED
+  CANCELLED
+}
+
+model Customer {
+  id          String @id @default(cuid())
+  code        String @unique
+  name        String
+  address     String?
+  phone       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sales       Sale[]
+
+  @@map("customers")
+}
+
+model Sale {
+  id          String @id @default(cuid())
+  saleNo      String @unique
+  date        DateTime
+  customerId  String
+  subtotal    Decimal @db.Decimal(15,2)
+  total       Decimal @db.Decimal(15,2)
+  tax         Decimal @default(0) @db.Decimal(15,2)
+  status      String @default("PENDING")
+  journalId   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  customer    Customer @relation(fields: [customerId], references: [id])
+  items       SaleItem[]
+
+  @@map("sales")
+}
+
+model SaleItem {
+  id          String @id @default(cuid())
+  saleId      String
+  productName String
+  quantity    Int
+  price       Decimal @db.Decimal(15,2)
+  amount      Decimal @db.Decimal(15,2)
+
+  sale        Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  @@map("sale_items")
+}
+
+model MonthlyAIRecommendation {
+  id                   String   @id @default(cuid())
+  year                 Int      
+  month                Int      
+  recommendationType   String
+  recommendationText   String   @db.Text
+  isCustom             Boolean  @default(false)     
+  customPrompt         String?  @db.Text            
+  userId               String?                      
+  metadata             Json?                        
+  isActive             Boolean  @default(true)      
+  deletedAt            DateTime?                    
+  archivedAt           DateTime?                    
+  generatedAt          DateTime @default(now())
+  updatedAt            DateTime @updatedAt          
+
+  @@unique([year, month], name: "year_month")      
+  @@map("monthly_ai_recommendations")
+}
