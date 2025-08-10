@@ -7,10 +7,6 @@ class RecommendationController {
     this.aiService = new AIService();
   }
 
-  /**
-   * Generate monthly AI recommendation
-   * POST /api/recommendations/monthly
-   */
   async generateMonthlyRecommendation(req, res) {
     try {
       const { year, month } = req.body;
@@ -43,10 +39,6 @@ class RecommendationController {
     }
   }
 
-  /**
-   * Get recommendation by ID
-   * GET /api/recommendations/:id
-   */
   async getRecommendationById(req, res) {
     try {
       const { id } = req.params;
@@ -80,10 +72,6 @@ class RecommendationController {
     }
   }
 
-  /**
-   * Get recommendations by date range or filters
-   * GET /api/recommendations
-   */
   async getRecommendations(req, res) {
     try {
       const {
@@ -135,10 +123,6 @@ class RecommendationController {
     }
   }
 
-  /**
-   * Generate custom recommendation with manual prompt
-   * POST /api/recommendations/custom
-   */
   async generateCustomRecommendation(req, res) {
     try {
       const {
@@ -152,7 +136,6 @@ class RecommendationController {
         maxTokens,
       } = req.body;
 
-      // Build options for AI service
       const aiOptions = {};
       if (model) aiOptions.model = model;
       if (temperature) aiOptions.temperature = temperature;
@@ -189,19 +172,13 @@ class RecommendationController {
     }
   }
 
-  /**
-   * Generate multiple recommendation variations
-   * POST /api/recommendations/variations
-   */
   async generateRecommendationVariations(req, res) {
     try {
       const { year, month, variations = 3 } = req.body;
 
-      // Get financial data using the service
       const financialData =
         await this.recommendationService.getFinancialDataForMonth(year, month);
 
-      // Generate variations
       const variationResults =
         await this.aiService.generateRecommendationVariations(
           financialData.summary,
@@ -236,19 +213,13 @@ class RecommendationController {
     }
   }
 
-  /**
-   * Analyze financial data and get AI insights
-   * POST /api/recommendations/analyze
-   */
   async analyzeFinancialData(req, res) {
     try {
       const { year, month } = req.body;
 
-      // Get financial data using the service
       const financialData =
         await this.recommendationService.getFinancialDataForMonth(year, month);
 
-      // Analyze with AI
       const analysis = await this.aiService.analyzeFinancialData({
         ...financialData.processed,
         transactionCount: financialData.raw.journalEntries.length,
@@ -282,10 +253,6 @@ class RecommendationController {
     }
   }
 
-  /**
-   * Test AI service connection
-   * GET /api/recommendations/test-ai
-   */
   async testAIConnection(req, res) {
     try {
       const { model } = req.query;
@@ -309,10 +276,6 @@ class RecommendationController {
     }
   }
 
-  /**
-   * Get available AI models
-   * GET /api/recommendations/models
-   */
   async getAvailableModels(req, res) {
     try {
       const models = await this.aiService.getAvailableModels();
@@ -336,10 +299,6 @@ class RecommendationController {
     }
   }
 
-  /**
-   * Update recommendation
-   * PUT /api/recommendations/:id
-   */
   async updateRecommendation(req, res) {
     try {
       const { id } = req.params;
@@ -363,10 +322,6 @@ class RecommendationController {
     }
   }
 
-  /**
-   * Delete recommendation
-   * DELETE /api/recommendations/:id
-   */
   async deleteRecommendation(req, res) {
     try {
       const { id } = req.params;
@@ -388,10 +343,6 @@ class RecommendationController {
     }
   }
 
-  /**
-   * Bulk delete recommendations
-   * DELETE /api/recommendations/bulk
-   */
   async bulkDeleteRecommendations(req, res) {
     try {
       const { ids } = req.body;
@@ -423,10 +374,6 @@ class RecommendationController {
     }
   }
 
-  /**
-   * Regenerate existing recommendation
-   * POST /api/recommendations/:id/regenerate
-   */
   async regenerateRecommendation(req, res) {
     try {
       const { id } = req.params;
@@ -462,10 +409,6 @@ class RecommendationController {
     }
   }
 
-  /**
-   * Export recommendations
-   * GET /api/recommendations/export
-   */
   async exportRecommendations(req, res) {
     try {
       const { format = "json", startDate, endDate, type } = req.query;
@@ -488,7 +431,6 @@ class RecommendationController {
           }
         );
 
-      // Handle different export formats
       switch (format) {
         case "csv":
           const csvData = this.convertToCSV(recommendations);
@@ -500,13 +442,12 @@ class RecommendationController {
           return res.send(csvData);
 
         case "pdf":
-          // This would require a PDF library like puppeteer or pdfkit
           return res.status(501).json({
             success: false,
             message: "PDF export belum diimplementasikan.",
           });
 
-        default: // json
+        default:
           res.status(200).json({
             success: true,
             message: "Data rekomendasi berhasil diekspor.",
@@ -528,10 +469,6 @@ class RecommendationController {
     }
   }
 
-  /**
-   * Get service status
-   * GET /api/recommendations/status
-   */
   async getServiceStatus(req, res) {
     try {
       const status = await this.recommendationService.getServiceStatus();
@@ -551,9 +488,6 @@ class RecommendationController {
     }
   }
 
-  /**
-   * Helper method to convert data to CSV format
-   */
   convertToCSV(data) {
     if (!data.length) return "";
 

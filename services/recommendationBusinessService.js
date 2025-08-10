@@ -82,14 +82,12 @@ class RecommendationBusinessService {
       let finalPrompt = prompt;
       let financialContext = null;
 
-      // Include financial data if requested
       if (includeFinancialData && year && month) {
         const financialData = await this.getFinancialDataForMonth(year, month);
         financialContext = financialData.summary;
         finalPrompt = `${financialContext}\n\nBerdasarkan data keuangan di atas, ${prompt}`;
       }
 
-      // Generate AI response
       const aiRecommendationText = await this.aiService.generateRecommendation(
         finalPrompt,
         aiOptions

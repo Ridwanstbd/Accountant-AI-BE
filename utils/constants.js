@@ -1,3 +1,5 @@
+// utils/constant.js
+
 const ACCOUNT_TYPES = {
   ASSET: "ASSET",
   LIABILITY: "LIABILITY",

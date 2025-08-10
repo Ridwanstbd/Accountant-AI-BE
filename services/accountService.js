@@ -1,6 +1,5 @@
-// services/accountServices.js
 const { prisma } = require("../models");
-const { generateCode } = require("../utils/helpers");
+const { ACCOUNT_TYPES } = require("../utils/constants");
 
 class AccountService {
   async getAllAccounts(filters = {}) {
@@ -34,7 +33,11 @@ class AccountService {
   async createAccount(data) {
     const { code, name, type, category, balance = 0 } = data;
 
-    // Check for duplicate code
+    const validAccountTypes = Object.values(ACCOUNT_TYPES);
+    if (!validAccountTypes.includes(type)) {
+      throw new Error("Tipe Akun Tidak Valid");
+    }
+
     const existingAccount = await prisma.account.findUnique({
       where: { code },
     });
@@ -56,6 +59,13 @@ class AccountService {
 
   async updateAccount(id, data) {
     const { name, type, category, isActive } = data;
+
+    if (type) {
+      const validAccountTypes = Object.values(ACCOUNT_TYPES);
+      if (!validAccountTypes.includes(type)) {
+        throw new Error("Tipe Akun Tidak Valid");
+      }
+    }
 
     return await prisma.account.update({
       where: { id },
@@ -87,6 +97,21 @@ class AccountService {
       type: account.type,
       balance: account.balance,
     }));
+  }
+
+  async getAccountsByType(type) {
+    const validAccountTypes = Object.values(ACCOUNT_TYPES);
+    if (!validAccountTypes.includes(type)) {
+      throw new Error("Tipe akun tidak valid");
+    }
+
+    return await prisma.account.findMany({
+      where: {
+        type,
+        isActive: true,
+      },
+      orderBy: { code: "asc" },
+    });
   }
 }
 
