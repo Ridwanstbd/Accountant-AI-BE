@@ -1,0 +1,1988 @@
+openapi: 3.0.3
+info:
+  title: Accounting Management API
+  description: |
+    RESTful API untuk sistem manajemen akuntansi dengan fitur:
+    - Chart of Accounts (Bagan Akun)
+    - Journal Management (Jurnal)
+    - Customer Management (Pelanggan)
+    - Sales Management (Penjualan)
+    - AI Recommendations (Rekomendasi AI)
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@example.com
+
+servers:
+  - url: http://localhost:3000/api
+    description: Development server
+  - url: https://api.accounting.com
+    description: Production server
+
+tags:
+  - name: Health
+    description: API health check
+  - name: Accounts
+    description: Chart of Accounts management
+  - name: Journals
+    description: Journal entries and posting
+  - name: Customers
+    description: Customer management
+  - name: Sales
+    description: Sales transactions
+  - name: Recommendations
+    description: AI-powered business recommendations
+
+paths:
+  # Health Check
+  /health:
+    get:
+      tags:
+        - Health
+      summary: API Health Check
+      description: Check if API is running properly
+      responses:
+        "200":
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  # Accounts Endpoints
+  /accounts:
+    get:
+      tags:
+        - Accounts
+      summary: Get all accounts
+      description: Retrieve all accounts with optional filtering
+      parameters:
+        - name: type
+          in: query
+          description: Filter by account type
+          schema:
+            type: string
+            enum: [ASSET, LIABILITY, EQUITY, REVENUE, EXPENSE]
+        - name: category
+          in: query
+          description: Filter by account category
+          schema:
+            type: string
+        - name: active
+          in: query
+          description: Filter by active status
+          schema:
+            type: string
+            enum: ["true", "false"]
+      responses:
+        "200":
+          description: Accounts retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountsResponse"
+
+    post:
+      tags:
+        - Accounts
+      summary: Create new account
+      description: Create a new account in chart of accounts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAccountRequest"
+      responses:
+        "201":
+          description: Account created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /accounts/{id}:
+    get:
+      tags:
+        - Accounts
+      summary: Get account by ID
+      description: Retrieve specific account with entries
+      parameters:
+        - $ref: "#/components/parameters/AccountId"
+      responses:
+        "200":
+          description: Account retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountDetailResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      tags:
+        - Accounts
+      summary: Update account
+      description: Update account information
+      parameters:
+        - $ref: "#/components/parameters/AccountId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAccountRequest"
+      responses:
+        "200":
+          description: Account updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountResponse"
+
+  /accounts/{id}/deactivate:
+    patch:
+      tags:
+        - Accounts
+      summary: Deactivate account
+      description: Set account status to inactive
+      parameters:
+        - $ref: "#/components/parameters/AccountId"
+      responses:
+        "200":
+          description: Account deactivated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountResponse"
+
+  /accounts/trial-balance:
+    get:
+      tags:
+        - Accounts
+      summary: Get trial balance
+      description: Retrieve trial balance report
+      responses:
+        "200":
+          description: Trial balance retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrialBalanceResponse"
+
+  # Journal Endpoints
+  /journals:
+    get:
+      tags:
+        - Journals
+      summary: Get all journals
+      description: Retrieve journals with optional filtering
+      parameters:
+        - name: type
+          in: query
+          description: Filter by journal type
+          schema:
+            type: string
+            enum: [GENERAL, SALES, PURCHASE, PAYMENT]
+        - name: status
+          in: query
+          description: Filter by journal status
+          schema:
+            type: string
+            enum: [DRAFT, POSTED, CANCELLED]
+        - name: startDate
+          in: query
+          description: Filter from start date (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          description: Filter to end date (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Journals retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JournalsResponse"
+
+    post:
+      tags:
+        - Journals
+      summary: Create journal entry
+      description: Create a new journal entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateJournalRequest"
+      responses:
+        "201":
+          description: Journal created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JournalResponse"
+
+  /journals/sales:
+    post:
+      tags:
+        - Journals
+      summary: Create sales journal
+      description: Create journal entry from sales transaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSalesJournalRequest"
+      responses:
+        "201":
+          description: Sales journal created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JournalResponse"
+
+  /journals/{id}:
+    get:
+      tags:
+        - Journals
+      summary: Get journal by ID
+      description: Retrieve specific journal with entries
+      parameters:
+        - $ref: "#/components/parameters/JournalId"
+      responses:
+        "200":
+          description: Journal retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JournalDetailResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags:
+        - Journals
+      summary: Delete journal
+      description: Delete journal entry (only if status is DRAFT)
+      parameters:
+        - $ref: "#/components/parameters/JournalId"
+      responses:
+        "200":
+          description: Journal deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /journals/{id}/post:
+    patch:
+      tags:
+        - Journals
+      summary: Post journal
+      description: Post journal entry and update account balances
+      parameters:
+        - $ref: "#/components/parameters/JournalId"
+      responses:
+        "200":
+          description: Journal posted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JournalResponse"
+
+  # Customer Endpoints
+  /customers:
+    get:
+      tags:
+        - Customers
+      summary: Get all customers
+      description: Retrieve all customers with optional search
+      parameters:
+        - name: search
+          in: query
+          description: Search by name, code, or email
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Customers retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomersResponse"
+
+    post:
+      tags:
+        - Customers
+      summary: Create customer
+      description: Create a new customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCustomerRequest"
+      responses:
+        "201":
+          description: Customer created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerResponse"
+
+  /customers/{id}:
+    get:
+      tags:
+        - Customers
+      summary: Get customer by ID
+      description: Retrieve specific customer with sales history
+      parameters:
+        - $ref: "#/components/parameters/CustomerId"
+      responses:
+        "200":
+          description: Customer retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerDetailResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      tags:
+        - Customers
+      summary: Update customer
+      description: Update customer information
+      parameters:
+        - $ref: "#/components/parameters/CustomerId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCustomerRequest"
+      responses:
+        "200":
+          description: Customer updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerResponse"
+
+    delete:
+      tags:
+        - Customers
+      summary: Delete customer
+      description: Delete customer (only if no sales transactions)
+      parameters:
+        - $ref: "#/components/parameters/CustomerId"
+      responses:
+        "200":
+          description: Customer deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  # Sales Endpoints
+  /sales:
+    get:
+      tags:
+        - Sales
+      summary: Get all sales
+      description: Retrieve sales with optional filtering
+      parameters:
+        - name: status
+          in: query
+          description: Filter by sale status
+          schema:
+            type: string
+            enum: [PENDING, CONFIRMED, COMPLETED, CANCELLED]
+        - name: customerId
+          in: query
+          description: Filter by customer ID
+          schema:
+            type: string
+        - name: startDate
+          in: query
+          description: Filter from start date (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          description: Filter to end date (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Sales retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SalesResponse"
+
+    post:
+      tags:
+        - Sales
+      summary: Create sale
+      description: Create a new sales transaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSaleRequest"
+      responses:
+        "201":
+          description: Sale created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SaleResponse"
+
+  /sales/{id}:
+    get:
+      tags:
+        - Sales
+      summary: Get sale by ID
+      description: Retrieve specific sale with items
+      parameters:
+        - $ref: "#/components/parameters/SaleId"
+      responses:
+        "200":
+          description: Sale retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SaleDetailResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags:
+        - Sales
+      summary: Delete sale
+      description: Delete sale (only if status is PENDING)
+      parameters:
+        - $ref: "#/components/parameters/SaleId"
+      responses:
+        "200":
+          description: Sale deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /sales/{id}/status:
+    patch:
+      tags:
+        - Sales
+      summary: Update sale status
+      description: Update status of sales transaction
+      parameters:
+        - $ref: "#/components/parameters/SaleId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSaleStatusRequest"
+      responses:
+        "200":
+          description: Sale status updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SaleResponse"
+
+  /sales/report:
+    get:
+      tags:
+        - Sales
+      summary: Get sales report
+      description: Get comprehensive sales report with analytics
+      parameters:
+        - name: startDate
+          in: query
+          description: Report start date (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          description: Report end date (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: customerId
+          in: query
+          description: Filter by customer ID
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Sales report retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SalesReportResponse"
+
+  # Recommendations Endpoints
+  /recommendations:
+    get:
+      tags:
+        - Recommendations
+      summary: Get recommendations
+      description: Retrieve AI recommendations with filtering and pagination
+      parameters:
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: year
+          in: query
+          schema:
+            type: integer
+        - name: month
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 12
+        - name: type
+          in: query
+          schema:
+            type: string
+        - name: isCustom
+          in: query
+          schema:
+            type: boolean
+        - name: userId
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            default: generatedAt
+        - name: sortOrder
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+      responses:
+        "200":
+          description: Recommendations retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecommendationsResponse"
+
+    delete:
+      tags:
+        - Recommendations
+      summary: Bulk delete recommendations
+      description: Delete multiple recommendations by IDs
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkDeleteRequest"
+      responses:
+        "200":
+          description: Recommendations deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkDeleteResponse"
+
+  /recommendations/monthly:
+    post:
+      tags:
+        - Recommendations
+      summary: Generate monthly recommendation
+      description: Generate AI recommendation for specific month
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateMonthlyRecommendationRequest"
+      responses:
+        "200":
+          description: Monthly recommendation generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecommendationGeneratedResponse"
+
+  /recommendations/custom:
+    post:
+      tags:
+        - Recommendations
+      summary: Generate custom recommendation
+      description: Generate AI recommendation with custom prompt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateCustomRecommendationRequest"
+      responses:
+        "200":
+          description: Custom recommendation generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomRecommendationResponse"
+
+  /recommendations/variations:
+    post:
+      tags:
+        - Recommendations
+      summary: Generate recommendation variations
+      description: Generate multiple variations of recommendations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateVariationsRequest"
+      responses:
+        "200":
+          description: Recommendation variations generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VariationsResponse"
+
+  /recommendations/analyze:
+    post:
+      tags:
+        - Recommendations
+      summary: Analyze financial data
+      description: Analyze financial data with AI
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnalyzeFinancialDataRequest"
+      responses:
+        "200":
+          description: Financial data analyzed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinancialAnalysisResponse"
+
+  /recommendations/test-ai:
+    get:
+      tags:
+        - Recommendations
+      summary: Test AI connection
+      description: Test connection to AI service
+      parameters:
+        - name: model
+          in: query
+          description: AI model to test
+          schema:
+            type: string
+      responses:
+        "200":
+          description: AI connection test successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AITestResponse"
+
+  /recommendations/models:
+    get:
+      tags:
+        - Recommendations
+      summary: Get available AI models
+      description: Retrieve list of available AI models
+      responses:
+        "200":
+          description: Available models retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AIModelsResponse"
+
+  /recommendations/status:
+    get:
+      tags:
+        - Recommendations
+      summary: Get service status
+      description: Get status of recommendation service
+      responses:
+        "200":
+          description: Service status retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceStatusResponse"
+
+  /recommendations/export:
+    get:
+      tags:
+        - Recommendations
+      summary: Export recommendations
+      description: Export recommendations in various formats
+      parameters:
+        - name: format
+          in: query
+          description: Export format
+          schema:
+            type: string
+            enum: [json, csv, pdf]
+            default: json
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: type
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Recommendations exported successfully
+
+  /recommendations/{id}:
+    get:
+      tags:
+        - Recommendations
+      summary: Get recommendation by ID
+      description: Retrieve specific recommendation
+      parameters:
+        - $ref: "#/components/parameters/RecommendationId"
+      responses:
+        "200":
+          description: Recommendation retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecommendationResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      tags:
+        - Recommendations
+      summary: Update recommendation
+      description: Update recommendation content
+      parameters:
+        - $ref: "#/components/parameters/RecommendationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateRecommendationRequest"
+      responses:
+        "200":
+          description: Recommendation updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecommendationResponse"
+
+    delete:
+      tags:
+        - Recommendations
+      summary: Delete recommendation
+      description: Delete recommendation (soft delete)
+      parameters:
+        - $ref: "#/components/parameters/RecommendationId"
+      responses:
+        "200":
+          description: Recommendation deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /recommendations/{id}/regenerate:
+    post:
+      tags:
+        - Recommendations
+      summary: Regenerate recommendation
+      description: Regenerate existing recommendation
+      parameters:
+        - $ref: "#/components/parameters/RecommendationId"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegenerateRecommendationRequest"
+      responses:
+        "200":
+          description: Recommendation regenerated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegenerateResponse"
+
+components:
+  parameters:
+    AccountId:
+      name: id
+      in: path
+      required: true
+      description: Account ID
+      schema:
+        type: string
+
+    JournalId:
+      name: id
+      in: path
+      required: true
+      description: Journal ID
+      schema:
+        type: string
+
+    CustomerId:
+      name: id
+      in: path
+      required: true
+      description: Customer ID
+      schema:
+        type: string
+
+    SaleId:
+      name: id
+      in: path
+      required: true
+      description: Sale ID
+      schema:
+        type: string
+
+    RecommendationId:
+      name: id
+      in: path
+      required: true
+      description: Recommendation ID
+      schema:
+        type: string
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    # Base Response Schemas
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Operation completed successfully"
+      required:
+        - success
+        - message
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: "Error message"
+      required:
+        - success
+        - message
+
+    HealthResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessResponse"
+        - type: object
+          properties:
+            timestamp:
+              type: string
+              format: date-time
+
+    # Account Schemas
+    Account:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "clxy123456789"
+        code:
+          type: string
+          example: "101"
+        name:
+          type: string
+          example: "Kas"
+        type:
+          type: string
+          enum: [ASSET, LIABILITY, EQUITY, REVENUE, EXPENSE]
+        category:
+          type: string
+          example: "Current Asset"
+        balance:
+          type: number
+          format: decimal
+          example: 1000000.00
+        isActive:
+          type: boolean
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateAccountRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          example: "101"
+        name:
+          type: string
+          example: "Kas"
+        type:
+          type: string
+          enum: [ASSET, LIABILITY, EQUITY, REVENUE, EXPENSE]
+        category:
+          type: string
+          example: "Current Asset"
+        balance:
+          type: number
+          format: decimal
+          default: 0
+      required:
+        - code
+        - name
+        - type
+        - category
+
+    UpdateAccountRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [ASSET, LIABILITY, EQUITY, REVENUE, EXPENSE]
+        category:
+          type: string
+        isActive:
+          type: boolean
+
+    AccountsResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessResponse"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/Account"
+
+    AccountResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessResponse"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/Account"
+
+    AccountDetailResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessResponse"
+        - type: object
+          properties:
+            data:
+              allOf:
+                - $ref: "#/components/schemas/Account"
+                - type: object
+                  properties:
+                    debitEntries:
+                      type: array
+                      items:
+                        $ref: "#/components/schemas/JournalEntry"
+                    creditEntries:
+                      type: array
+                      items:
+                        $ref: "#/components/schemas/JournalEntry"
+
+    TrialBalanceResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessResponse"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                type: object
+                properties:
+                  code:
+                    type: string
+                  name:
+                    type: string
+                  type:
+                    type: string
+                  balance:
+                    type: number
+                    format: decimal
+
+    # Journal Schemas
+    Journal:
+      type: object
+      properties:
+        id:
+          type: string
+        journalNo:
+          type: string
+          example: "JU-202507-0001"
+        date:
+          type: string
+          format: date-time
+        reference:
+          type: string
+        type:
+          type: string
+          enum: [GENERAL, SALES, PURCHASE, PAYMENT]
+        totalAmount:
+          type: number
+          format: decimal
+        status:
+          type: string
+          enum: [DRAFT, POSTED, CANCELLED]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    JournalEntry:
+      type: object
+      properties:
+        id:
+          type: string
+        journalId:
+          type: string
+        debitAccountId:
+          type: string
+        creditAccountId:
+          type: string
+        description:
+          type: string
+        debitAmount:
+          type: number
+          format: decimal
+        creditAmount:
+          type: number
+          format: decimal
+        createdAt:
+          type: string
+          format: date-time
+        debitAccount:
+          $ref: "#/components/schemas/Account"
+        creditAccount:
+          $ref: "#/components/schemas/Account"
+
+    CreateJournalRequest:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        reference:
+          type: string
+        type:
+          type: string
+          enum: [GENERAL, SALES, PURCHASE, PAYMENT]
+        entries:
+          type: array
+          items:
+            type: object
+            properties:
+              debitAccountId:
+                type: string
+              creditAccountId:
+                type: string
+              description:
+                type: string
+              debitAmount:
+                type: number
+                format: decimal
+              creditAmount:
+                type: number
+                format: decimal
+      required:
+        - date
+        - type
+        - entries
+
+    CreateSalesJournalRequest:
+      type: object
+      properties:
+        saleId:
+          type: string
+        cashAccountId:
+          type: string
+        salesAccountId:
+          type: string
+        taxAccountId:
+          type: string
+      required:
+        - saleId
+        - cashAccountId
+        - salesAccountId
+
+    JournalsResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessResponse"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/Journal"
+
+    JournalResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessResponse"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/Journal"
+
+    JournalDetailResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessResponse"
+        - type: object
+          properties:
+            data:
+              allOf:
+                - $ref: "#/components/schemas/Journal"
+                - type: object
+                  properties:
+                    entries:
+                      type: array
+                      items:
+                        $ref: "#/components/schemas/JournalEntry"
+
+    # Customer Schemas
+    Customer:
+      type: object
+      properties:
+        id:
+          type: string
+        code:
+          type: string
+          example: "CUST-0001"
+        name:
+          type: string
+          example: "PT. Maju Jaya"
+        address:
+          type: string
+        phone:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateCustomerRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "PT. Maju Jaya"
+        address:
+          type: string
+        phone:
+          type: string
+      required:
+        - name
+
+    UpdateCustomerRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        address:
+          type: string
+        phone:
+          type: string
+
+    CustomersResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessResponse"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/Customer"
+
+    CustomerResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessResponse"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/Customer"
+
+    CustomerDetailResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessResponse"
+        - type: object
+          properties:
+            data:
+              allOf:
+                - $ref: "#/components/schemas/Customer"
+                - type: object
+                  properties:
+                    sales:
+                      type: array
+                      items:
+                        $ref: "#/components/schemas/Sale"
+
+    # Sales Schemas
+    Sale:
+      type: object
+      properties:
+        id:
+          type: string
+        saleNo:
+          type: string
+          example: "SALE-202507-0001"
+        date:
+          type: string
+          format: date-time
+        customerId:
+          type: string
+        subtotal:
+          type: number
+          format: decimal
+        total:
+          type: number
+          format: decimal
+        tax:
+          type: number
+          format: decimal
+        status:
+          type: string
+          enum: [PENDING, CONFIRMED, COMPLETED, CANCELLED]
+          default: "PENDING"
+        journalId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    SaleItem:
+      type: object
+      properties:
+        id:
+          type: string
+        saleId:
+          type: string
+        productName:
+          type: string
+          example: "Laptop Asus"
+        quantity:
+          type: integer
+          example: 1
+        price:
+          type: number
+          format: decimal
+          example: 800000.00
+        amount:
+          type: number
+          format: decimal
+          example: 800000.00
+
+    CreateSaleRequest:
+      type: object
+      properties:
+        customerId:
+          type: string
+        date:
+          type: string
+          format: date
+        tax:
+          type: number
+          format: decimal
+          default: 0
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              productName:
+                type: string
+                example: "Laptop Asus"
+              quantity:
+                type: integer
+                example: 1
+              price:
+                type: number
+                format: decimal
+                example: 800000.00
+            required:
+              - productName
+              - quantity
+              - price
+      required:
+        - customerId
+        - date
+        - items
+
+    UpdateSaleStatusRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [PENDING, CONFIRMED, COMPLETED, CANCELLED]
+      required:
+        - status
+
+    SalesResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessResponse"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                allOf:
+                  - $ref: "#/components/schemas/Sale"
+                  - type: object
+                    properties:
+                      customer:
+                        $ref: "#/components/schemas/Customer"
+                      items:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/SaleItem"
+
+    SaleResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessResponse"
+        - type: object
+          properties:
+            data:
+              allOf:
+                - $ref: "#/components/schemas/Sale"
+                - type: object
+                  properties:
+                    customer:
+                      $ref: "#/components/schemas/Customer"
+                    items:
+                      type: array
+                      items:
+                        $ref: "#/components/schemas/SaleItem"
+
+    SaleDetailResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessResponse"
+        - type: object
+          properties:
+            data:
+              allOf:
+                - $ref: "#/components/schemas/Sale"
+                - type: object
+                  properties:
+                    customer:
+                      $ref: "#/components/schemas/Customer"
+                    items:
+                      type: array
+                      items:
+                        $ref: "#/components/schemas/SaleItem"
+
+    SalesReportResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessResponse"
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                statusSummary:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      status:
+                        type: string
+                      _sum:
+                        type: object
+                        properties:
+                          total:
+                            type: number
+                            format: decimal
+                      _count:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                topProducts:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      productName:
+                        type: string
+                      _sum:
+                        type: object
+                        properties:
+                          quantity:
+                            type: integer
+                          amount:
+                            type: number
+                            format: decimal
+                monthlyData:
+                  type: object
+                  additionalProperties:
+                    type: object
+                    properties:
+                      total:
+                        type: number
+                        format: decimal
+                      count:
+                        type: integer
+
+    # Recommendation Schemas
+    Recommendation:
+      type: object
+      properties:
+        id:
+          type: string
+        year:
+          type: integer
+          example: 2025
+        month:
+          type: integer
+          example: 7
+        recommendationType:
+          type: string
+          example: "CostSaving"
+        recommendationText:
+          type: string
+          example: "Berdasarkan analisis data keuangan..."
+        isCustom:
+          type: boolean
+          default: false
+        customPrompt:
+          type: string
+        userId:
+          type: string
+        metadata:
+          type: object
+        isActive:
+          type: boolean
+          default: true
+        deletedAt:
+          type: string
+          format: date-time
+        archivedAt:
+          type: string
+          format: date-time
+        generatedAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    GenerateMonthlyRecommendationRequest:
+      type: object
+      properties:
+        year:
+          type: integer
+          example: 2025
+        month:
+          type: integer
+          minimum: 1
+          maximum: 12
+          example: 7
+      required:
+        - year
+        - month
+
+    GenerateCustomRecommendationRequest:
+      type: object
+      properties:
+        prompt:
+          type: string
+          example: "Bagaimana cara meningkatkan efisiensi operasional?"
+        year:
+          type: integer
+          example: 2025
+        month:
+          type: integer
+          example: 7
+        includeFinancialData:
+          type: boolean
+          default: false
+        userId:
+          type: string
+        model:
+          type: string
+        temperature:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 2
+        maxTokens:
+          type: integer
+      required:
+        - prompt
+
+    GenerateVariationsRequest:
+      type: object
+      properties:
+        year:
+          type: integer
+          example: 2025
+        month:
+          type: integer
+          example: 7
+        variations:
+          type: integer
+          default: 3
+          minimum: 1
+          maximum: 10
+      required:
+        - year
+        - month
+
+    AnalyzeFinancialDataRequest:
+      type: object
+      properties:
+        year:
+          type: integer
+          example: 2025
+        month:
+          type: integer
+          example: 7
+      required:
+        - year
+        - month
+
+    UpdateRecommendationRequest:
+      type: object
+      properties:
+        recommendationType:
+          type: string
+        recommendationText:
+          type: string
+        isActive:
+          type: boolean
+        customPrompt:
+          type: string
+        metadata:
+          type: object
+
+    RegenerateRecommendationRequest:
+      type: object
+      properties:
+        forceRegenerate:
+          type: boolean
+          default: false
+
+    BulkDeleteRequest:
+      type: object
+      properties:
+        ids:
+          type: array
+          items:
+            type: string
+          example: ["id1", "id2", "id3"]
+      required:
+        - ids
+
+    RecommendationsResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessResponse"
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: "#/components/schemas/Recommendation"
+            pagination:
+              type: object
+              properties:
+                total:
+                  type: integer
+                limit:
+                  type: integer
+                offset:
+                  type: integer
+                hasMore:
+                  type: boolean
+                totalPages:
+                  type: integer
+                currentPage:
+                  type: integer
+            statistics:
+              type: object
+              properties:
+                byType:
+                  type: object
+                  additionalProperties:
+                    type: integer
+                total:
+                  type: integer
+
+    RecommendationResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessResponse"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/Recommendation"
+
+    RecommendationGeneratedResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessResponse"
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                recommendation:
+                  $ref: "#/components/schemas/Recommendation"
+                financialSummary:
+                  type: object
+                  properties:
+                    totalRevenue:
+                      type: number
+                      format: decimal
+                    totalExpense:
+                      type: number
+                      format: decimal
+                    netIncome:
+                      type: number
+                      format: decimal
+            meta:
+              type: object
+              properties:
+                aiRawOutput:
+                  type: string
+                generatedAt:
+                  type: string
+                  format: date-time
+
+    CustomRecommendationResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessResponse"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/Recommendation"
+            meta:
+              type: object
+              properties:
+                originalPrompt:
+                  type: string
+                finalPrompt:
+                  type: string
+                aiRawOutput:
+                  type: string
+                aiOptions:
+                  type: object
+
+    VariationsResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessResponse"
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                variations:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      variation:
+                        type: integer
+                      text:
+                        type: string
+                      approach:
+                        type: string
+                financialSummary:
+                  type: object
+                  properties:
+                    totalRevenue:
+                      type: number
+                      format: decimal
+                    totalExpense:
+                      type: number
+                      format: decimal
+                    netIncome:
+                      type: number
+                      format: decimal
+            meta:
+              type: object
+              properties:
+                year:
+                  type: integer
+                month:
+                  type: integer
+                variationCount:
+                  type: integer
+                generatedAt:
+                  type: string
+                  format: date-time
+
+    FinancialAnalysisResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessResponse"
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                analysis:
+                  type: object
+                  properties:
+                    recommendedType:
+                      type: string
+                    reasoning:
+                      type: string
+                    priority:
+                      type: string
+                      enum: [high, medium, low]
+                    keyInsights:
+                      type: array
+                      items:
+                        type: string
+                financialData:
+                  type: object
+                  properties:
+                    totalRevenue:
+                      type: number
+                      format: decimal
+                    totalExpense:
+                      type: number
+                      format: decimal
+                    netIncome:
+                      type: number
+                      format: decimal
+                    transactionCount:
+                      type: integer
+            meta:
+              type: object
+              properties:
+                year:
+                  type: integer
+                month:
+                  type: integer
+                analyzedAt:
+                  type: string
+                  format: date-time
+
+    RegenerateResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessResponse"
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                recommendation:
+                  $ref: "#/components/schemas/Recommendation"
+                financialSummary:
+                  type: object
+            meta:
+              type: object
+              properties:
+                regenerated:
+                  type: boolean
+                previousRecommendation:
+                  $ref: "#/components/schemas/Recommendation"
+                aiRawOutput:
+                  type: string
+
+    BulkDeleteResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessResponse"
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                deletedCount:
+                  type: integer
+                requestedIds:
+                  type: array
+                  items:
+                    type: string
+
+    AITestResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessResponse"
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                success:
+                  type: boolean
+                model:
+                  type: string
+                response:
+                  type: string
+                timestamp:
+                  type: string
+                  format: date-time
+                error:
+                  type: string
+
+    AIModelsResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessResponse"
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                models:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      name:
+                        type: string
+                      description:
+                        type: string
+                currentModel:
+                  type: string
+                config:
+                  type: object
+                  properties:
+                    configured:
+                      type: boolean
+                    model:
+                      type: string
+                    baseUrl:
+                      type: string
+                    siteUrl:
+                      type: string
+                    siteName:
+                      type: string
+                    hasApiKey:
+                      type: boolean
+
+    ServiceStatusResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessResponse"
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                database:
+                  type: object
+                  properties:
+                    status:
+                      type: string
+                      enum: [healthy, unhealthy]
+                    message:
+                      type: string
+                    recommendationCount:
+                      type: integer
+                aiService:
+                  type: object
+                  properties:
+                    status:
+                      type: string
+                      enum: [healthy, unhealthy]
+                    message:
+                      type: string
+                statistics:
+                  type: object
+                  properties:
+                    totalRecommendations:
+                      type: integer
+                    activeRecommendations:
+                      type: integer
+                    customRecommendations:
+                      type: integer
+                    systemRecommendations:
+                      type: integer
+                timestamp:
+                  type: string
+                  format: date-time
+                version:
+                  type: string

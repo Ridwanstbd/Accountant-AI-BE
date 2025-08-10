@@ -13,9 +13,131 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Account {
+model User {
+  id           String @id @default(cuid())
+  email        String @unique
+  username     String @unique
+  password     String @unique
+  isActive     Boolean @default(true)
+  isSuperAdmin Boolean @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  profile      UserProfile?
+  userRoles    UserRole[]
+  businessUsers BusinessUser[] // Relation to businesses through BusinessUser
+
+  @@map("users")
+}
+
+model UserProfile {
+  id        String @id @default(cuid())
+  userId    String @unique
+  firstName String?
+  lastName  String?
+  avatar    String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("user_profiles")
+}
+
+model Business {
   id          String @id @default(cuid())
   code        String @unique
+  name        String
+  description String?
+  address     String?
+  phone       String?
+  email       String?
+  isActive    Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  businessUsers BusinessUser[] // Users in this business
+  accounts     Account[]       // Accounts belonging to this business
+  journals     Journal[]       // Journals of this business
+  customers    Customer[]      // Customers of this business
+  sales        Sale[]          // Sales of this business
+  recommendations MonthlyAIRecommendation[] // AI recommendations for this business
+
+  @@map("businesses")
+}
+
+model BusinessUser {
+  id         String @id @default(cuid())
+  businessId String
+  userId     String
+  roleId     String
+  isActive   Boolean @default(true)
+  joinedAt   DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  user       User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       Role @relation(fields: [roleId], references: [id])
+
+  @@unique([businessId, userId]) // One user can only have one role per business
+  @@map("business_users")
+}
+
+model Role {
+  id          String @id @default(cuid())
+  name        String @unique
+  displayName String
+  isActive    Boolean @default(true)
+
+  userRoles     UserRole[]
+  businessUsers BusinessUser[]
+  permissions   RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id        String @id @default(cuid())
+  name      String @unique
+  displayName String 
+  module    String
+
+  rolePermission RolePermission[]
+
+  @@map("permissions")
+}
+
+model UserRole {
+  id        String @id @default(cuid())
+  userId    String
+  roleId    String
+
+  user  User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role  Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  id      String @id @default(cuid())
+  roleId  String
+  permissionId String
+
+  role    Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+enum PermissionType {
+  GRANT
+  DENY
+}
+
+model Account {
+  id          String @id @default(cuid())
+  businessId  String // Added business relation
+  code        String
   name        String
   type        AccountType
   category    String
@@ -24,9 +146,11 @@ model Account {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  debitEntries JournalEntry[] @relation("DebitAccount")
+  business      Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  debitEntries  JournalEntry[] @relation("DebitAccount")
   creditEntries JournalEntry[] @relation("CreditAccount")
 
+  @@unique([businessId, code]) // Account code unique per business
   @@map("accounts")
 }
 
@@ -38,20 +162,23 @@ enum AccountType {
    EXPENSE
 }
 
-
 model Journal {
   id          String @id @default(cuid())
-  journalNo   String @unique
+  businessId  String // Added business relation
+  journalNo   String
   date        DateTime
   reference   String?
   type        JournalType
   totalAmount Decimal @db.Decimal(15,2)
   status      JournalStatus @default(DRAFT)
+  createdBy   String? // User who created this journal
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   entries     JournalEntry[]
 
+  @@unique([businessId, journalNo]) // Journal number unique per business
   @@map("journals")
 }
 
@@ -65,8 +192,8 @@ model JournalEntry {
   creditAmount Decimal @default(0) @db.Decimal(15,2)
   createdAt   DateTime @default(now())
 
-  journal     Journal @relation(fields: [journalId], references: [id], onDelete: Cascade )
-  debitAccount Account? @relation("DebitAccount",fields: [debitAccountId], references: [id])
+  journal     Journal @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  debitAccount Account? @relation("DebitAccount", fields: [debitAccountId], references: [id])
   creditAccount Account? @relation("CreditAccount", fields: [creditAccountId], references: [id])
 
   @@map("journal_entries")
@@ -87,21 +214,25 @@ enum JournalStatus {
 
 model Customer {
   id          String @id @default(cuid())
-  code        String @unique
+  businessId  String // Added business relation
+  code        String
   name        String
   address     String?
   phone       String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   sales       Sale[]
 
+  @@unique([businessId, code]) // Customer code unique per business
   @@map("customers")
 }
 
 model Sale {
   id          String @id @default(cuid())
-  saleNo      String @unique
+  businessId  String // Added business relation
+  saleNo      String
   date        DateTime
   customerId  String
   subtotal    Decimal @db.Decimal(15,2)
@@ -112,9 +243,11 @@ model Sale {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   customer    Customer @relation(fields: [customerId], references: [id])
   items       SaleItem[]
 
+  @@unique([businessId, saleNo]) // Sale number unique per business
   @@map("sales")
 }
 
@@ -133,20 +266,23 @@ model SaleItem {
 
 model MonthlyAIRecommendation {
   id                   String   @id @default(cuid())
+  businessId           String   // Added business relation
   year                 Int      
   month                Int      
   recommendationType   String
   recommendationText   String   @db.Text
   isCustom             Boolean  @default(false)     
   customPrompt         String?  @db.Text            
-  userId               String?                      
+  userId               String?  // User who requested this recommendation            
   metadata             Json?                        
   isActive             Boolean  @default(true)      
   deletedAt            DateTime?                    
   archivedAt           DateTime?                    
   generatedAt          DateTime @default(now())
-  updatedAt            DateTime @updatedAt          
+  updatedAt            DateTime @updatedAt
 
-  @@unique([year, month], name: "year_month")      
+  business             Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, year, month], name: "business_year_month") // Unique per business, year, month
   @@map("monthly_ai_recommendations")
 }

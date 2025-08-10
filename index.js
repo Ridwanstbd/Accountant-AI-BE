@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const routes = require("./routes/index");
+const swagger = require("./config/swagger");
 const errorHandler = require("./middlewares/errorHandler");
 
 dotenv.config();
@@ -13,14 +14,41 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.use("/api-docs", swagger.serve, swagger.setup);
+app.get("/swagger.json", (req, res) => {
+  res.setHeader("Content-Type", "application/json");
+  res.send(swagger.swaggerDocument);
+});
+
 app.use("/api", routes);
+
+app.get("/", (req, res) => {
+  res.redirect("/api-docs");
+});
 
 app.use(errorHandler);
 
 app.use("/{*any}", (req, res) => {
   res.status(404).json({
     success: false,
-    message: "Route not found",
+    message: "Endpoint not found",
+    availableEndpoints: {
+      documentation: "/api-docs",
+      health: "/api/health",
+      swagger_json: "/swagger.json",
+    },
+  });
+});
+
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({
+    success: false,
+    message: "Something went wrong!",
+    error:
+      process.env.NODE_ENV === "development"
+        ? err.message
+        : "Internal server error",
   });
 });
 

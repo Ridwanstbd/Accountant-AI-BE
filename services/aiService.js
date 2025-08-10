@@ -75,19 +75,15 @@ class AIService {
     } catch (error) {
       console.error("OpenRouter AI Service Error:", error);
 
-      // Handle axios specific errors
       if (error.response) {
-        // Server responded with error status
         const errorMessage =
           error.response.data?.error?.message || error.response.statusText;
         throw new Error(
           `OpenRouter API error: ${error.response.status} - ${errorMessage}`
         );
       } else if (error.request) {
-        // Request was made but no response received
         throw new Error(`Network error: Unable to reach OpenRouter API`);
       } else {
-        // Something else happened
         throw new Error(
           `Failed to generate AI recommendation: ${error.message}`
         );
