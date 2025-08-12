@@ -1,9 +1,11 @@
 const express = require("express");
 const RecommendationController = require("../controllers/recommendationController");
+const { verifyToken } = require("../middlewares/auth");
 
 const router = express.Router();
 const recommendationController = new RecommendationController();
 
+router.use(verifyToken);
 router.post("/monthly", async (req, res) => {
   await recommendationController.generateMonthlyRecommendation(req, res);
 });
