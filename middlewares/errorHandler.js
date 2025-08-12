@@ -1,31 +1,44 @@
+const ResponseHelpers = require("../utils/responseHelpers");
+
 const errorHandler = (error, req, res, next) => {
   console.log("Error:", error);
-
-  if (error.code === "P2025") {
-    return res.status(404).json({
-      success: false,
-      message: "Record not found",
-    });
-  }
-  if (error.code === "P2002") {
-    return res.status(409).json({
-      success: false,
-      message: "Data already exists",
-    });
-  }
-  if (error.name === "ValidationError") {
-    return res.status(400).json({
-      success: false,
-      message: error.message,
-    });
+  if (err.code === "P2002") {
+    return ResponseHelpers.error(
+      res,
+      "A record with this data already exists",
+      409
+    );
   }
 
-  res.status(500).json({
-    success: false,
-    message:
-      process.env.NODE_ENV === "development"
-        ? error.message
-        : "Internal server error",
-  });
+  if (err.code === "P2025") {
+    return ResponseHelpers.notFound(res, "Record not found");
+  }
+
+  // JWT errors
+  if (err.name === "JsonWebTokenError") {
+    return ResponseHelpers.unauthorized(res, "Invalid token");
+  }
+
+  if (err.name === "TokenExpiredError") {
+    return ResponseHelpers.unauthorized(res, "Token expired");
+  }
+
+  // Validation errors
+  if (err.name === "ValidationError") {
+    return ResponseHelpers.validationError(res, err.details);
+  }
+
+  // Custom application errors
+  if (err.statusCode) {
+    return ResponseHelpers.error(res, err.message, err.statusCode);
+  }
+
+  // Default server error
+  const message =
+    process.env.NODE_ENV === "development"
+      ? err.message
+      : "Internal Server Error";
+
+  return ResponseHelpers.error(res, message, 500);
 };
 module.exports = errorHandler;

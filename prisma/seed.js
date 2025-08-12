@@ -1,335 +1,285 @@
-// prisma/seed.js
-const {
-  PrismaClient,
-  AccountType,
-  JournalType,
-  JournalStatus,
-} = require("@prisma/client");
-const { Decimal } = require("@prisma/client/runtime/library");
+const { PrismaClient } = require("@prisma/client");
+const bcrypt = require("bcryptjs");
+const { DEFAULT_PERMISSIONS } = require("../utils/permissions");
 
 const prisma = new PrismaClient();
 
 async function main() {
   console.log("🌱 Seeding database...");
 
-  // Clear existing data (optional - hati-hati di production!)
-  // await prisma.journalEntry.deleteMany();
-  // await prisma.journal.deleteMany();
-  // await prisma.saleItem.deleteMany();
-  // await prisma.sale.deleteMany();
-  // await prisma.customer.deleteMany();
-  // await prisma.account.deleteMany();
-  // await prisma.monthlyAIRecommendation.deleteMany();
+  // Create permissions using the predefined list
+  console.log("Creating permissions...");
+  for (const permission of DEFAULT_PERMISSIONS) {
+    await prisma.permission.upsert({
+      where: { name: permission.name },
+      update: {},
+      create: permission,
+    });
+  }
 
-  // Seed Chart of Accounts (Bagan Akun)
-  const accounts = [
-    // ASSETS (Aktiva)
-    {
-      code: "101",
-      name: "Kas",
-      type: AccountType.ASSET,
-      category: "Current Asset",
-      balance: new Decimal(0),
+  // Create roles
+  console.log("Creating roles...");
+  const superAdminRole = await prisma.role.upsert({
+    where: { name: "super_admin" },
+    update: {},
+    create: {
+      name: "super_admin",
+      displayName: "Super Administrator",
     },
-    {
-      code: "102",
-      name: "Bank BCA",
-      type: AccountType.ASSET,
-      category: "Current Asset",
-      balance: new Decimal(0),
-    },
-    {
-      code: "103",
-      name: "Bank Mandiri",
-      type: AccountType.ASSET,
-      category: "Current Asset",
-      balance: new Decimal(0),
-    },
-    {
-      code: "111",
-      name: "Piutang Usaha",
-      type: AccountType.ASSET,
-      category: "Current Asset",
-      balance: new Decimal(0),
-    },
-    {
-      code: "121",
-      name: "Persediaan Barang",
-      type: AccountType.ASSET,
-      category: "Current Asset",
-      balance: new Decimal(0),
-    },
-    {
-      code: "131",
-      name: "Peralatan",
-      type: AccountType.ASSET,
-      category: "Fixed Asset",
-      balance: new Decimal(0),
-    },
-    {
-      code: "132",
-      name: "Akumulasi Penyusutan Peralatan",
-      type: AccountType.ASSET,
-      category: "Fixed Asset",
-      balance: new Decimal(0),
-    },
+  });
 
-    // LIABILITIES (Kewajiban)
-    {
-      code: "201",
-      name: "Utang Usaha",
-      type: AccountType.LIABILITY,
-      category: "Current Liability",
-      balance: new Decimal(0),
+  const adminRole = await prisma.role.upsert({
+    where: { name: "admin" },
+    update: {},
+    create: {
+      name: "admin",
+      displayName: "Administrator",
     },
-    {
-      code: "202",
-      name: "Utang Bank",
-      type: AccountType.LIABILITY,
-      category: "Long Term Liability",
-      balance: new Decimal(0),
-    },
-    {
-      code: "211",
-      name: "PPN Keluaran",
-      type: AccountType.LIABILITY,
-      category: "Tax Liability",
-      balance: new Decimal(0),
-    },
+  });
 
-    // EQUITY (Modal)
-    {
-      code: "301",
-      name: "Modal Pemilik",
-      type: AccountType.EQUITY,
-      category: "Owner Equity",
-      balance: new Decimal(100000000),
+  const managerRole = await prisma.role.upsert({
+    where: { name: "manager" },
+    update: {},
+    create: {
+      name: "manager",
+      displayName: "Manager",
     },
-    {
-      code: "302",
-      name: "Laba Ditahan",
-      type: AccountType.EQUITY,
-      category: "Retained Earnings",
-      balance: new Decimal(0),
-    },
+  });
 
-    // REVENUE (Pendapatan)
-    {
-      code: "401",
-      name: "Penjualan",
-      type: AccountType.REVENUE,
-      category: "Sales Revenue",
-      balance: new Decimal(0),
+  const userRole = await prisma.role.upsert({
+    where: { name: "user" },
+    update: {},
+    create: {
+      name: "user",
+      displayName: "User",
     },
-    {
-      code: "402",
-      name: "Pendapatan Lain-lain",
-      type: AccountType.REVENUE,
-      category: "Other Revenue",
-      balance: new Decimal(0),
-    },
+  });
 
-    // EXPENSES (Beban)
-    {
-      code: "501",
-      name: "Beban Gaji",
-      type: AccountType.EXPENSE,
-      category: "Operating Expense",
-      balance: new Decimal(0),
-    },
-    {
-      code: "502",
-      name: "Beban Listrik",
-      type: AccountType.EXPENSE,
-      category: "Operating Expense",
-      balance: new Decimal(0),
-    },
-    {
-      code: "503",
-      name: "Beban Telepon",
-      type: AccountType.EXPENSE,
-      category: "Operating Expense",
-      balance: new Decimal(0),
-    },
-    {
-      code: "504",
-      name: "Beban Penyusutan",
-      type: AccountType.EXPENSE,
-      category: "Operating Expense",
-      balance: new Decimal(0),
-    },
-    {
-      code: "505",
-      name: "Beban Lain-lain",
-      type: AccountType.EXPENSE,
-      category: "Other Expense",
-      balance: new Decimal(0),
-    },
-  ];
-
-  console.log("📊 Creating Chart of Accounts...");
-  for (const account of accounts) {
-    await prisma.account.upsert({
-      where: { code: account.code },
+  // Assign all permissions to super admin role
+  console.log("Assigning permissions to roles...");
+  const allPermissions = await prisma.permission.findMany();
+  for (const permission of allPermissions) {
+    await prisma.rolePermission.upsert({
+      where: {
+        roleId_permissionId: {
+          roleId: superAdminRole.id,
+          permissionId: permission.id,
+        },
+      },
       update: {},
       create: {
-        code: account.code,
-        name: account.name,
-        type: account.type,
-        category: account.category,
-        balance: account.balance,
-        isActive: true,
+        roleId: superAdminRole.id,
+        permissionId: permission.id,
       },
     });
   }
 
-  // Seed Customers
-  const customers = [
+  // Assign business and user permissions to admin role
+  const adminPermissions = allPermissions.filter(
+    (p) =>
+      p.name.includes("business_") ||
+      p.name.includes("user_") ||
+      p.name.includes("role_") ||
+      p.name.includes("account_") ||
+      p.name.includes("journal_") ||
+      p.name.includes("sale_") ||
+      p.name.includes("customer_")
+  );
+
+  for (const permission of adminPermissions) {
+    await prisma.rolePermission.upsert({
+      where: {
+        roleId_permissionId: {
+          roleId: adminRole.id,
+          permissionId: permission.id,
+        },
+      },
+      update: {},
+      create: {
+        roleId: adminRole.id,
+        permissionId: permission.id,
+      },
+    });
+  }
+
+  // Assign view permissions to user role
+  const viewPermissions = allPermissions.filter((p) =>
+    p.name.includes("_view")
+  );
+  for (const permission of viewPermissions) {
+    await prisma.rolePermission.upsert({
+      where: {
+        roleId_permissionId: {
+          roleId: userRole.id,
+          permissionId: permission.id,
+        },
+      },
+      update: {},
+      create: {
+        roleId: userRole.id,
+        permissionId: permission.id,
+      },
+    });
+  }
+
+  // Create superadmin user
+  console.log("Creating superadmin user...");
+  const hashedPassword = await bcrypt.hash("admin123", 12);
+  const superAdmin = await prisma.user.upsert({
+    where: { email: "admin@example.com" },
+    update: {},
+    create: {
+      email: "admin@example.com",
+      username: "superadmin",
+      password: hashedPassword,
+      isSuperAdmin: true,
+      profile: {
+        create: {
+          firstName: "Super",
+          lastName: "Admin",
+        },
+      },
+    },
+  });
+
+  // Create sample business
+  console.log("Creating sample business...");
+  const sampleBusiness = await prisma.business.upsert({
+    where: { code: "DEMO001" },
+    update: {},
+    create: {
+      code: "DEMO001",
+      name: "Demo Business",
+      description: "Sample business for demonstration",
+      address: "123 Demo Street",
+      phone: "+1234567890",
+      email: "demo@business.com",
+    },
+  });
+
+  // Create demo user
+  console.log("Creating demo user...");
+  const demoUserPassword = await bcrypt.hash("demo123", 12);
+  const demoUser = await prisma.user.upsert({
+    where: { email: "demo@example.com" },
+    update: {},
+    create: {
+      email: "demo@example.com",
+      username: "demouser",
+      password: demoUserPassword,
+      profile: {
+        create: {
+          firstName: "Demo",
+          lastName: "User",
+        },
+      },
+    },
+  });
+
+  // Assign demo user to sample business with manager role
+  await prisma.businessUser.upsert({
+    where: {
+      businessId_userId: {
+        businessId: sampleBusiness.id,
+        userId: demoUser.id,
+      },
+    },
+    update: {},
+    create: {
+      businessId: sampleBusiness.id,
+      userId: demoUser.id,
+      roleId: managerRole.id,
+    },
+  });
+
+  // Create sample accounts for the business
+  console.log("Creating sample accounts...");
+  const accounts = [
+    { code: "1000", name: "Cash", type: "ASSET", category: "Current Assets" },
     {
-      code: "CUST-0001",
-      name: "PT. Maju Jaya",
-      address: "Jl. Sudirman No. 123, Jakarta",
-      phone: "021-1234567",
+      code: "1100",
+      name: "Accounts Receivable",
+      type: "ASSET",
+      category: "Current Assets",
     },
     {
-      code: "CUST-0002",
-      name: "CV. Berkah Sentosa",
-      address: "Jl. Gatot Subroto No. 45, Surabaya",
-      phone: "031-9876543",
+      code: "2000",
+      name: "Accounts Payable",
+      type: "LIABILITY",
+      category: "Current Liabilities",
     },
     {
-      code: "CUST-0003",
-      name: "Toko Sinar Harapan",
-      address: "Jl. Malioboro No. 67, Yogyakarta",
-      phone: "0274-555666",
+      code: "3000",
+      name: "Owner's Equity",
+      type: "EQUITY",
+      category: "Equity",
+    },
+    {
+      code: "4000",
+      name: "Sales Revenue",
+      type: "REVENUE",
+      category: "Revenue",
+    },
+    {
+      code: "5000",
+      name: "Cost of Goods Sold",
+      type: "EXPENSE",
+      category: "Cost of Sales",
+    },
+    {
+      code: "6000",
+      name: "Operating Expenses",
+      type: "EXPENSE",
+      category: "Operating Expenses",
     },
   ];
 
-  console.log("👥 Creating Customers...");
-  for (const customer of customers) {
-    await prisma.customer.upsert({
-      where: { code: customer.code },
-      update: {},
-      create: customer,
-    });
-  }
-
-  // Seed Sample Sales
-  console.log("💰 Creating Sample Sales...");
-  const sampleCustomers = await prisma.customer.findMany();
-
-  if (sampleCustomers.length > 0) {
-    const sampleSale = await prisma.sale.create({
-      data: {
-        saleNo: "SALE-202507-0001",
-        date: new Date("2025-07-15"),
-        customerId: sampleCustomers[0].id,
-        subtotal: new Decimal(1000000),
-        tax: new Decimal(100000),
-        total: new Decimal(1100000),
-        status: "PAID",
-        items: {
-          create: [
-            {
-              productName: "Laptop Asus",
-              quantity: 1,
-              price: new Decimal(800000),
-              amount: new Decimal(800000),
-            },
-            {
-              productName: "Mouse Wireless",
-              quantity: 2,
-              price: new Decimal(100000),
-              amount: new Decimal(200000),
-            },
-          ],
+  for (const account of accounts) {
+    await prisma.account.upsert({
+      where: {
+        businessId_code: {
+          businessId: sampleBusiness.id,
+          code: account.code,
         },
       },
+      update: {},
+      create: {
+        businessId: sampleBusiness.id,
+        ...account,
+      },
     });
-
-    console.log("📝 Creating Sample Journal Entry...");
-    // Buat jurnal penjualan untuk sample sale
-    const kasAccount = await prisma.account.findUnique({
-      where: { code: "101" },
-    });
-    const penjualanAccount = await prisma.account.findUnique({
-      where: { code: "401" },
-    });
-    const ppnAccount = await prisma.account.findUnique({
-      where: { code: "211" },
-    });
-
-    if (kasAccount && penjualanAccount && ppnAccount) {
-      const journal = await prisma.journal.create({
-        data: {
-          journalNo: "JP-202412-0001",
-          date: new Date("2024-12-15"),
-          reference: `Penjualan ${sampleSale.saleNo} - ${sampleCustomers[0].name}`,
-          type: JournalType.SALES,
-          totalAmount: new Decimal(1100000),
-          status: JournalStatus.POSTED,
-          entries: {
-            create: [
-              {
-                debitAccountId: kasAccount.id,
-                description: `Penerimaan dari penjualan ${sampleSale.saleNo}`,
-                debitAmount: new Decimal(1100000),
-                creditAmount: new Decimal(0),
-              },
-              {
-                creditAccountId: penjualanAccount.id,
-                description: `Penjualan kepada ${sampleCustomers[0].name}`,
-                debitAmount: new Decimal(0),
-                creditAmount: new Decimal(1000000),
-              },
-              {
-                creditAccountId: ppnAccount.id,
-                description: `PPN Penjualan ${sampleSale.saleNo}`,
-                debitAmount: new Decimal(0),
-                creditAmount: new Decimal(100000),
-              },
-            ],
-          },
-        },
-      });
-
-      // Update sale dengan journal ID dan update saldo akun
-      await prisma.sale.update({
-        where: { id: sampleSale.id },
-        data: { journalId: journal.id },
-      });
-
-      // Update account balances
-      await prisma.account.update({
-        where: { id: kasAccount.id },
-        data: { balance: { increment: new Decimal(1100000) } },
-      });
-
-      await prisma.account.update({
-        where: { id: penjualanAccount.id },
-        data: { balance: { increment: new Decimal(1000000) } },
-      });
-
-      await prisma.account.update({
-        where: { id: ppnAccount.id },
-        data: { balance: { increment: new Decimal(100000) } },
-      });
-    }
   }
 
-  console.log("✅ Seeding completed successfully!");
-  console.log("📋 Summary:");
-  console.log(`- ${accounts.length} accounts created`);
-  console.log(`- ${customers.length} customers created`);
-  console.log("- 1 sample sale with journal entry created");
+  // Create sample customer
+  console.log("Creating sample customer...");
+  await prisma.customer.upsert({
+    where: {
+      businessId_code: {
+        businessId: sampleBusiness.id,
+        code: "CUST001",
+      },
+    },
+    update: {},
+    create: {
+      businessId: sampleBusiness.id,
+      code: "CUST001",
+      name: "Sample Customer",
+      address: "456 Customer Street",
+      phone: "+0987654321",
+    },
+  });
+
+  console.log("✅ Database seeded successfully!");
+  console.log("👤 SuperAdmin: admin@example.com / admin123");
+  console.log("👤 Demo User: demo@example.com / demo123");
+  console.log("🏢 Demo Business: DEMO001 (Demo Business)");
 }
 
 main()
-  .then(async () => {
-    await prisma.$disconnect();
-  })
-  .catch(async (e) => {
+  .catch((e) => {
     console.error("❌ Seeding failed:", e);
-    await prisma.$disconnect();
     process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
   });

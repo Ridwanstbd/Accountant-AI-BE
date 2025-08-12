@@ -4,7 +4,7 @@ class AIService {
   constructor() {
     this.apiKey = process.env.OPENROUTER_API_KEY;
     this.baseUrl = "https://openrouter.ai/api/v1/chat/completions";
-    this.siteUrl = process.env.SITE_URL || "http://localhost:3000";
+    this.siteUrl = process.env.FRONTEND_URL || "http://localhost:3000";
     this.siteName = process.env.SITE_NAME || "AI Recommendation System";
 
     this.defaultModel =

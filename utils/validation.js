@@ -1,3 +1,5 @@
+const ResponseHelpers = require("./responseHelpers");
+
 const { body, query, param, validationResult } = require("express-validator");
 const {
   ACCOUNT_TYPES,
@@ -5,6 +7,42 @@ const {
   JOURNAL_STATUS,
   SALE_STATUS,
 } = require("./constants");
+
+const validate = (schema) => {
+  return (req, res, next) => {
+    const { error } = schema.validate(req.body, { abortEarly: false });
+
+    if (error) {
+      return ResponseHelpers.validationError(res, error.details);
+    }
+
+    next();
+  };
+};
+
+const validateParams = (schema) => {
+  return (req, res, next) => {
+    const { error } = schema.validate(req.params, { abortEarly: false });
+
+    if (error) {
+      return ResponseHelpers.validationError(res, error.details);
+    }
+
+    next();
+  };
+};
+
+const validateQuery = (schema) => {
+  return (req, res, next) => {
+    const { error } = schema.validate(req.query, { abortEarly: false });
+
+    if (error) {
+      return ResponseHelpers.validationError(res, error.details);
+    }
+
+    next();
+  };
+};
 
 const accountValidation = {
   create: [
@@ -325,6 +363,9 @@ const getMonthDateRange = (year, month) => {
 };
 
 module.exports = {
+  validate,
+  validateParams,
+  validateQuery,
   accountValidation,
   journalValidation,
   customerValidation,
