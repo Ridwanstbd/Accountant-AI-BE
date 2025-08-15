@@ -2,10 +2,10 @@ const { prisma } = require("../models");
 const { ACCOUNT_TYPES } = require("../utils/constants");
 
 class AccountService {
-  async getAllAccounts(filters = {}) {
+  async getAllAccounts(businessId, filters = {}) {
     const { type, category, active } = filters;
 
-    const where = {};
+    const where = { businessId };
     if (type) where.type = type;
     if (category) where.category = category;
     if (active !== undefined) where.isActive = active === "true";
@@ -16,9 +16,9 @@ class AccountService {
     });
   }
 
-  async getAccountById(id) {
+  async getAccountById(businessId, id) {
     return await prisma.account.findUnique({
-      where: { id },
+      where: { id, businessId },
       include: {
         debitEntries: {
           include: { journal: true },
@@ -39,7 +39,12 @@ class AccountService {
     }
 
     const existingAccount = await prisma.account.findUnique({
-      where: { code },
+      where: {
+        businessId_code: {
+          businessId,
+          code,
+        },
+      },
     });
 
     if (existingAccount) {
@@ -48,6 +53,7 @@ class AccountService {
 
     return await prisma.account.create({
       data: {
+        businessId,
         code,
         name,
         type,
@@ -57,7 +63,7 @@ class AccountService {
     });
   }
 
-  async updateAccount(id, data) {
+  async updateAccount(businessId, id, data) {
     const { name, type, category, isActive } = data;
 
     if (type) {
@@ -65,6 +71,11 @@ class AccountService {
       if (!validAccountTypes.includes(type)) {
         throw new Error("Tipe Akun Tidak Valid");
       }
+    }
+
+    const account = await this.getAccountById(businessId, id);
+    if (!account) {
+      throw new Error("Account tidak ditemukan atau tidak memiliki akses");
     }
 
     return await prisma.account.update({
@@ -85,9 +96,12 @@ class AccountService {
     });
   }
 
-  async getTrialBalance() {
+  async getTrialBalance(businessId) {
     const accounts = await prisma.account.findMany({
-      where: { isActive: true },
+      where: {
+        businessId,
+        isActive: true,
+      },
       orderBy: { code: "asc" },
     });
 
