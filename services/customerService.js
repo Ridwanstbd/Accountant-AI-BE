@@ -1,21 +1,21 @@
-// services/customerServices.js
 const { prisma } = require("../models");
 const { generateCode } = require("../utils/helpers");
 
 class CustomerService {
-  async getAllCustomers(search = null) {
-    const where = {};
+  async getAllCustomers(businessId, search = null) {
+    const where = { businessId };
     if (search) {
       where.OR = [
         { name: { contains: search, mode: "insensitive" } },
         { code: { contains: search, mode: "insensitive" } },
-        { email: { contains: search, mode: "insensitive" } },
+        { phone: { contains: search, mode: "insensitive" } },
       ];
     }
 
     return await prisma.customer.findMany({
       where,
       include: {
+        business: true,
         sales: {
           select: {
             id: true,
@@ -30,10 +30,14 @@ class CustomerService {
     });
   }
 
-  async getCustomerById(id) {
-    return await prisma.customer.findUnique({
-      where: { id },
+  async getCustomerById(businessId, id) {
+    return await prisma.customer.findFirst({
+      where: {
+        id,
+        businessId,
+      },
       include: {
+        business: true,
         sales: {
           include: { items: true },
           orderBy: { date: "desc" },
@@ -42,15 +46,15 @@ class CustomerService {
     });
   }
 
-  async createCustomer(data) {
-    const { name, address, phone, email } = data;
+  async createCustomer(businessId, data) {
+    const { name, address, phone } = data;
 
-    // Validasi data required
     if (!name || !name.trim()) {
       throw new Error("Nama customer wajib diisi");
     }
 
     const lastCustomer = await prisma.customer.findFirst({
+      where: { businessId },
       orderBy: { code: "desc" },
     });
 
@@ -58,21 +62,25 @@ class CustomerService {
 
     return await prisma.customer.create({
       data: {
+        businessId,
         code,
         name: name.trim(),
         address: address?.trim() || null,
         phone: phone?.trim() || null,
-        email: email?.trim() || null,
       },
     });
   }
 
-  async updateCustomer(id, data) {
-    const { name, address, phone, email } = data;
+  async updateCustomer(businessId, id, data) {
+    const { name, address, phone } = data;
 
-    // Validasi data
     if (name && !name.trim()) {
       throw new Error("Nama customer tidak boleh kosong");
+    }
+
+    const customer = await this.getCustomerById(businessId, id);
+    if (!customer) {
+      throw new Error("Customer tidak ditemukan atau tidak memiliki akses");
     }
 
     return await prisma.customer.update({
@@ -81,19 +89,21 @@ class CustomerService {
         ...(name && { name: name.trim() }),
         ...(address !== undefined && { address: address?.trim() || null }),
         ...(phone !== undefined && { phone: phone?.trim() || null }),
-        ...(email !== undefined && { email: email?.trim() || null }),
       },
     });
   }
 
-  async deleteCustomer(id) {
-    const customerWithSales = await prisma.customer.findUnique({
-      where: { id },
+  async deleteCustomer(businessId, id) {
+    const customerWithSales = await prisma.customer.findFirst({
+      where: {
+        id,
+        businessId,
+      },
       include: { sales: true },
     });
 
     if (!customerWithSales) {
-      throw new Error("Customer tidak ditemukan");
+      throw new Error("Customer tidak ditemukan atau tidak memiliki akses");
     }
 
     if (customerWithSales.sales.length > 0) {

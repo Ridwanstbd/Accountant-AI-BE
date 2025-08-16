@@ -1,12 +1,11 @@
-// services/salesServices.js
 const { prisma } = require("../models");
 const { generateSaleNumber } = require("../utils/helpers");
 
 class SalesService {
-  async getAllSales(filters = {}) {
+  async getAllSales(businessId, filters = {}) {
     const { status, customerId, startDate, endDate } = filters;
 
-    const where = {};
+    const where = { businessId };
     if (status) where.status = status;
     if (customerId) where.customerId = customerId;
     if (startDate || endDate) {
@@ -18,6 +17,7 @@ class SalesService {
     return await prisma.sale.findMany({
       where,
       include: {
+        business: true,
         customer: true,
         items: true,
       },
@@ -25,20 +25,23 @@ class SalesService {
     });
   }
 
-  async getSaleById(id) {
-    return await prisma.sale.findUnique({
-      where: { id },
+  async getSaleById(businessId, id) {
+    return await prisma.sale.findFirst({
+      where: {
+        id,
+        businessId,
+      },
       include: {
+        business: true,
         customer: true,
         items: true,
       },
     });
   }
 
-  async createSale(data) {
+  async createSale(businessId, data) {
     const { customerId, date, items, tax = 0 } = data;
 
-    // Validasi data required
     if (
       !customerId ||
       !date ||
@@ -49,16 +52,20 @@ class SalesService {
       throw new Error("Data penjualan tidak lengkap");
     }
 
-    const customer = await prisma.customer.findUnique({
-      where: { id: customerId },
+    const customer = await prisma.customer.findFirst({
+      where: {
+        id: customerId,
+        businessId,
+      },
     });
 
     if (!customer) {
-      throw new Error("Customer tidak ditemukan");
+      throw new Error("Customer tidak ditemukan dalam business ini");
     }
 
     const lastSale = await prisma.sale.findFirst({
       where: {
+        businessId,
         saleNo: { startsWith: "SALE" },
       },
       orderBy: { saleNo: "desc" },
@@ -90,6 +97,7 @@ class SalesService {
     return await prisma.$transaction(async (prisma) => {
       const sale = await prisma.sale.create({
         data: {
+          businessId,
           saleNo,
           date: new Date(date),
           customerId,
@@ -112,6 +120,7 @@ class SalesService {
       return await prisma.sale.findUnique({
         where: { id: sale.id },
         include: {
+          business: true,
           customer: true,
           items: true,
         },
@@ -119,30 +128,40 @@ class SalesService {
     });
   }
 
-  async updateSaleStatus(id, status) {
-    // Validasi status
+  async updateSaleStatus(businessId, id, status) {
     const validStatuses = ["PENDING", "CONFIRMED", "COMPLETED", "CANCELLED"];
     if (!validStatuses.includes(status)) {
       throw new Error("Status tidak valid");
+    }
+
+    const sale = await this.getSaleById(businessId, id);
+    if (!sale) {
+      throw new Error("Sale tidak ditemukan atau tidak memiliki akses");
     }
 
     return await prisma.sale.update({
       where: { id },
       data: { status },
       include: {
+        business: true,
         customer: true,
         items: true,
       },
     });
   }
 
-  async deleteSale(id) {
-    const sale = await prisma.sale.findUnique({
-      where: { id },
+  async deleteSale(businessId, id) {
+    const sale = await prisma.sale.findFirst({
+      where: {
+        id,
+        businessId,
+      },
     });
 
     if (!sale) {
-      throw new Error("Data penjualan tidak ditemukan");
+      throw new Error(
+        "Data penjualan tidak ditemukan atau tidak memiliki akses"
+      );
     }
 
     if (sale.status !== "PENDING") {
@@ -160,16 +179,24 @@ class SalesService {
     });
   }
 
-  async getSalesReport(filters = {}) {
+  async getSalesReport(businessId, filters = {}) {
     const { startDate, endDate, customerId } = filters;
 
-    const where = {};
+    const where = { businessId };
     if (startDate || endDate) {
       where.date = {};
       if (startDate) where.date.gte = new Date(startDate);
       if (endDate) where.date.lte = new Date(endDate);
     }
-    if (customerId) where.customerId = customerId;
+    if (customerId) {
+      const customer = await prisma.customer.findFirst({
+        where: { id: customerId, businessId },
+      });
+      if (!customer) {
+        throw new Error("Customer tidak ditemukan dalam business ini");
+      }
+      where.customerId = customerId;
+    }
 
     const statusSummary = await prisma.sale.groupBy({
       by: ["status"],

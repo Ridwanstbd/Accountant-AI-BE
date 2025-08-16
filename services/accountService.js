@@ -12,14 +12,21 @@ class AccountService {
 
     return await prisma.account.findMany({
       where,
+      include: {
+        business: true,
+      },
       orderBy: { code: "asc" },
     });
   }
 
   async getAccountById(businessId, id) {
-    return await prisma.account.findUnique({
-      where: { id, businessId },
+    return await prisma.account.findFirst({
+      where: {
+        id,
+        businessId,
+      },
       include: {
+        business: true,
         debitEntries: {
           include: { journal: true },
         },
@@ -30,7 +37,7 @@ class AccountService {
     });
   }
 
-  async createAccount(data) {
+  async createAccount(businessId, data) {
     const { code, name, type, category, balance = 0 } = data;
 
     const validAccountTypes = Object.values(ACCOUNT_TYPES);
@@ -38,17 +45,15 @@ class AccountService {
       throw new Error("Tipe Akun Tidak Valid");
     }
 
-    const existingAccount = await prisma.account.findUnique({
+    const existingAccount = await prisma.account.findFirst({
       where: {
-        businessId_code: {
-          businessId,
-          code,
-        },
+        businessId,
+        code,
       },
     });
 
     if (existingAccount) {
-      throw new Error("Kode akun sudah digunakan");
+      throw new Error("Kode akun sudah digunakan dalam business ini");
     }
 
     return await prisma.account.create({
@@ -73,6 +78,7 @@ class AccountService {
       }
     }
 
+    // Pastikan account milik business yang benar
     const account = await this.getAccountById(businessId, id);
     if (!account) {
       throw new Error("Account tidak ditemukan atau tidak memiliki akses");
@@ -89,7 +95,13 @@ class AccountService {
     });
   }
 
-  async deactivateAccount(id) {
+  async deactivateAccount(businessId, id) {
+    // Pastikan account milik business yang benar
+    const account = await this.getAccountById(businessId, id);
+    if (!account) {
+      throw new Error("Account tidak ditemukan atau tidak memiliki akses");
+    }
+
     return await prisma.account.update({
       where: { id },
       data: { isActive: false },
@@ -113,7 +125,7 @@ class AccountService {
     }));
   }
 
-  async getAccountsByType(type) {
+  async getAccountsByType(businessId, type) {
     const validAccountTypes = Object.values(ACCOUNT_TYPES);
     if (!validAccountTypes.includes(type)) {
       throw new Error("Tipe akun tidak valid");
@@ -121,6 +133,7 @@ class AccountService {
 
     return await prisma.account.findMany({
       where: {
+        businessId,
         type,
         isActive: true,
       },

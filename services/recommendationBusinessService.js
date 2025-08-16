@@ -13,10 +13,11 @@ class RecommendationBusinessService {
     this.aiService = new AIService();
   }
 
-  async generateMonthlyRecommendation(year, month) {
+  async generateMonthlyRecommendation(businessId, year, month) {
     try {
       // 1. Validate if recommendation already exists for this month
       const existingRecommendation = await this.findExistingRecommendation(
+        businessId,
         year,
         month
       );
@@ -33,7 +34,11 @@ class RecommendationBusinessService {
       }
 
       // 2. Get financial data for the specified month
-      const financialData = await this.getFinancialDataForMonth(year, month);
+      const financialData = await this.getFinancialDataForMonth(
+        businessId,
+        year,
+        month
+      );
 
       // 3. Validate if there's enough data to generate recommendation
       if (!this.hasEnoughDataForRecommendation(financialData)) {
@@ -49,6 +54,7 @@ class RecommendationBusinessService {
 
       // 5. Save recommendation to database
       const savedRecommendation = await this.saveRecommendation({
+        businessId,
         year,
         month,
         ...aiResult,
@@ -68,7 +74,7 @@ class RecommendationBusinessService {
     }
   }
 
-  async generateCustomRecommendation(params) {
+  async generateCustomRecommendation(businessId, params) {
     const {
       prompt,
       year,
@@ -83,7 +89,11 @@ class RecommendationBusinessService {
       let financialContext = null;
 
       if (includeFinancialData && year && month) {
-        const financialData = await this.getFinancialDataForMonth(year, month);
+        const financialData = await this.getFinancialDataForMonth(
+          businessId,
+          year,
+          month
+        );
         financialContext = financialData.summary;
         finalPrompt = `${financialContext}\n\nBerdasarkan data keuangan di atas, ${prompt}`;
       }
@@ -99,6 +109,7 @@ class RecommendationBusinessService {
       const savedRecommendation =
         await this.prisma.monthlyAIRecommendation.create({
           data: {
+            businessId,
             year: year || new Date().getFullYear(),
             month: month || new Date().getMonth() + 1,
             recommendationType,
@@ -128,7 +139,7 @@ class RecommendationBusinessService {
     }
   }
 
-  async getRecommendations(filters) {
+  async getRecommendations(businessId, filters) {
     const {
       startDate,
       endDate,
@@ -146,7 +157,7 @@ class RecommendationBusinessService {
 
     try {
       // Build complex filter conditions
-      const where = { isActive };
+      const where = { businessId, isActive };
 
       // Date filters
       if (year && month) {
@@ -171,6 +182,9 @@ class RecommendationBusinessService {
           skip: parseInt(offset),
           take: parseInt(limit),
           orderBy: { [sortBy]: sortOrder },
+          include: {
+            business: true,
+          },
         }),
         this.prisma.monthlyAIRecommendation.count({ where }),
         this.getRecommendationStats(where),
@@ -193,16 +207,21 @@ class RecommendationBusinessService {
     }
   }
 
-  async updateRecommendation(id, updateData) {
+  async updateRecommendation(businessId, id, updateData) {
     try {
-      // Check if recommendation exists and get current data
+      // Check if recommendation exists and belongs to the business
       const existingRecommendation =
-        await this.prisma.monthlyAIRecommendation.findUnique({
-          where: { id },
+        await this.prisma.monthlyAIRecommendation.findFirst({
+          where: {
+            id,
+            businessId,
+          },
         });
 
       if (!existingRecommendation) {
-        throw new Error("Rekomendasi tidak ditemukan");
+        throw new Error(
+          "Rekomendasi tidak ditemukan atau tidak memiliki akses"
+        );
       }
 
       // Validate update permissions (if it's a system-generated recommendation)
@@ -237,16 +256,21 @@ class RecommendationBusinessService {
     }
   }
 
-  async deleteRecommendation(id) {
+  async deleteRecommendation(businessId, id) {
     try {
-      // Check if recommendation exists
+      // Check if recommendation exists and belongs to the business
       const existingRecommendation =
-        await this.prisma.monthlyAIRecommendation.findUnique({
-          where: { id },
+        await this.prisma.monthlyAIRecommendation.findFirst({
+          where: {
+            id,
+            businessId,
+          },
         });
 
       if (!existingRecommendation) {
-        throw new Error("Rekomendasi tidak ditemukan");
+        throw new Error(
+          "Rekomendasi tidak ditemukan atau tidak memiliki akses"
+        );
       }
 
       // Log deletion for audit
@@ -275,16 +299,21 @@ class RecommendationBusinessService {
     }
   }
 
-  async regenerateRecommendation(id, forceRegenerate = false) {
+  async regenerateRecommendation(businessId, id, forceRegenerate = false) {
     try {
-      // Get existing recommendation
+      // Get existing recommendation and ensure it belongs to the business
       const existingRecommendation =
-        await this.prisma.monthlyAIRecommendation.findUnique({
-          where: { id },
+        await this.prisma.monthlyAIRecommendation.findFirst({
+          where: {
+            id,
+            businessId,
+          },
         });
 
       if (!existingRecommendation) {
-        throw new Error("Rekomendasi tidak ditemukan");
+        throw new Error(
+          "Rekomendasi tidak ditemukan atau tidak memiliki akses"
+        );
       }
 
       // Check if recently generated (smart caching)
@@ -304,6 +333,7 @@ class RecommendationBusinessService {
 
       // Generate new recommendation
       const result = await this.generateMonthlyRecommendation(
+        businessId,
         existingRecommendation.year,
         existingRecommendation.month
       );
@@ -318,12 +348,12 @@ class RecommendationBusinessService {
     }
   }
 
-  async getServiceStatus() {
+  async getServiceStatus(businessId) {
     try {
       const [dbHealth, aiHealth, systemStats] = await Promise.all([
-        this.checkDatabaseHealth(),
+        this.checkDatabaseHealth(businessId),
         this.checkAIServiceHealth(),
-        this.getSystemStatistics(),
+        this.getSystemStatistics(businessId),
       ]);
 
       return {
@@ -338,9 +368,10 @@ class RecommendationBusinessService {
     }
   }
 
-  async findExistingRecommendation(year, month) {
+  async findExistingRecommendation(businessId, year, month) {
     return await this.prisma.monthlyAIRecommendation.findFirst({
       where: {
+        businessId,
         year: year,
         month: month,
         isActive: true,
@@ -363,12 +394,12 @@ class RecommendationBusinessService {
     return true;
   }
 
-  async getFinancialDataForMonth(year, month) {
+  async getFinancialDataForMonth(businessId, year, month) {
     const { startDate, endDate } = getMonthDateRange(year, month);
 
     const [journalEntries, accounts] = await Promise.all([
-      this.getJournalEntriesByDateRange(startDate, endDate),
-      this.getAllAccounts(),
+      this.getJournalEntriesByDateRange(businessId, startDate, endDate),
+      this.getAllAccounts(businessId),
     ]);
 
     const processed = processFinancialData(journalEntries);
@@ -407,9 +438,16 @@ class RecommendationBusinessService {
   }
 
   async saveRecommendation(data) {
-    const { year, month, aiRecommendationText, recommendationType } = data;
+    const {
+      businessId,
+      year,
+      month,
+      aiRecommendationText,
+      recommendationType,
+    } = data;
 
     return await this.upsertMonthlyRecommendation({
+      businessId,
       year,
       month,
       recommendationType,
@@ -461,11 +499,13 @@ class RecommendationBusinessService {
   /**
    * Check database health
    */
-  async checkDatabaseHealth() {
+  async checkDatabaseHealth(businessId) {
     try {
       await this.prisma.$queryRaw`SELECT 1`;
       const recommendationCount =
-        await this.prisma.monthlyAIRecommendation.count();
+        await this.prisma.monthlyAIRecommendation.count({
+          where: { businessId },
+        });
 
       return {
         status: "healthy",
@@ -508,15 +548,17 @@ class RecommendationBusinessService {
   /**
    * Get system statistics
    */
-  async getSystemStatistics() {
+  async getSystemStatistics(businessId) {
     const [totalRecommendations, activeRecommendations, customRecommendations] =
       await Promise.all([
-        this.prisma.monthlyAIRecommendation.count(),
         this.prisma.monthlyAIRecommendation.count({
-          where: { isActive: true },
+          where: { businessId },
         }),
         this.prisma.monthlyAIRecommendation.count({
-          where: { isCustom: true, isActive: true },
+          where: { businessId, isActive: true },
+        }),
+        this.prisma.monthlyAIRecommendation.count({
+          where: { businessId, isCustom: true, isActive: true },
         }),
       ]);
 
@@ -531,10 +573,11 @@ class RecommendationBusinessService {
   /**
    * Get journal entries by date range
    */
-  async getJournalEntriesByDateRange(startDate, endDate) {
+  async getJournalEntriesByDateRange(businessId, startDate, endDate) {
     return await this.prisma.journalEntry.findMany({
       where: {
         journal: {
+          businessId,
           date: {
             gte: startDate,
             lte: endDate,
@@ -557,9 +600,12 @@ class RecommendationBusinessService {
   /**
    * Get all accounts
    */
-  async getAllAccounts() {
+  async getAllAccounts(businessId) {
     return await this.prisma.account.findMany({
-      where: { isActive: true },
+      where: {
+        businessId,
+        isActive: true,
+      },
       orderBy: {
         code: "asc",
       },
@@ -570,11 +616,13 @@ class RecommendationBusinessService {
    * Upsert monthly recommendation
    */
   async upsertMonthlyRecommendation(data) {
-    const { year, month, recommendationType, recommendationText } = data;
+    const { businessId, year, month, recommendationType, recommendationText } =
+      data;
 
     return await this.prisma.monthlyAIRecommendation.upsert({
       where: {
-        year_month: {
+        business_year_month: {
+          businessId,
           year,
           month,
         },
@@ -585,6 +633,7 @@ class RecommendationBusinessService {
         updatedAt: new Date(),
       },
       create: {
+        businessId,
         year,
         month,
         recommendationType,

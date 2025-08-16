@@ -4,11 +4,6 @@ const crypto = require("crypto");
 const { prisma } = require("../models");
 
 const emailService = require("./emailService");
-const {
-  userRole,
-  rolePermission,
-  businessUser,
-} = require("../config/database");
 
 class AuthService {
   static async register(userData) {

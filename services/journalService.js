@@ -6,10 +6,10 @@ const {
 } = require("../utils/helpers");
 
 class JournalService {
-  async getAllJournals(filters = {}) {
+  async getAllJournals(businessId, filters = {}) {
     const { type, status, startDate, endDate } = filters;
 
-    const where = {};
+    const where = { businessId };
     if (type) where.type = type;
     if (status) where.status = status;
     if (startDate || endDate) {
@@ -21,6 +21,7 @@ class JournalService {
     return await prisma.journal.findMany({
       where,
       include: {
+        business: true,
         entries: {
           include: {
             debitAccount: true,
@@ -32,10 +33,14 @@ class JournalService {
     });
   }
 
-  async getJournalById(id) {
-    return await prisma.journal.findUnique({
-      where: { id },
+  async getJournalById(businessId, id) {
+    return await prisma.journal.findFirst({
+      where: {
+        id,
+        businessId,
+      },
       include: {
+        business: true,
         entries: {
           include: {
             debitAccount: true,
@@ -46,10 +51,9 @@ class JournalService {
     });
   }
 
-  async createJournal(data) {
+  async createJournal(businessId, data) {
     const { date, reference, type, entries } = data;
 
-    // Validasi data required
     if (!date || !type || !entries || !Array.isArray(entries)) {
       throw new Error("Data journal tidak lengkap");
     }
@@ -60,6 +64,7 @@ class JournalService {
 
     const lastJournal = await prisma.journal.findFirst({
       where: {
+        businessId,
         journalNo: {
           startsWith: type === "GENERAL" ? "JU" : type === "SALES" ? "JP" : "J",
         },
@@ -76,6 +81,7 @@ class JournalService {
     return await prisma.$transaction(async (prisma) => {
       const journal = await prisma.journal.create({
         data: {
+          businessId,
           journalNo,
           date: new Date(date),
           reference: reference || `Journal ${journalNo}`,
@@ -86,9 +92,28 @@ class JournalService {
       });
 
       for (const entry of entries) {
-        // Validasi entry
         if (!entry.debitAccountId && !entry.creditAccountId) {
           throw new Error("Setiap entry harus memiliki akun debit atau kredit");
+        }
+
+        if (entry.debitAccountId) {
+          const debitAccount = await prisma.account.findFirst({
+            where: { id: entry.debitAccountId, businessId },
+          });
+          if (!debitAccount) {
+            throw new Error("Account debit tidak ditemukan dalam business ini");
+          }
+        }
+
+        if (entry.creditAccountId) {
+          const creditAccount = await prisma.account.findFirst({
+            where: { id: entry.creditAccountId, businessId },
+          });
+          if (!creditAccount) {
+            throw new Error(
+              "Account kredit tidak ditemukan dalam business ini"
+            );
+          }
         }
 
         await prisma.journalEntry.create({
@@ -106,6 +131,7 @@ class JournalService {
       return await prisma.journal.findUnique({
         where: { id: journal.id },
         include: {
+          business: true,
           entries: {
             include: {
               debitAccount: true,
@@ -117,30 +143,52 @@ class JournalService {
     });
   }
 
-  async createSalesJournal(data) {
+  async createSalesJournal(businessId, data) {
     const { saleId, cashAccountId, salesAccountId, taxAccountId } = data;
 
-    // Validasi data required
     if (!saleId || !cashAccountId || !salesAccountId) {
       throw new Error("Data untuk membuat journal penjualan tidak lengkap");
     }
 
-    const sale = await prisma.sale.findUnique({
-      where: { id: saleId },
+    const sale = await prisma.sale.findFirst({
+      where: {
+        id: saleId,
+        businessId,
+      },
       include: { customer: true },
     });
 
     if (!sale) {
-      throw new Error("Data penjualan tidak ditemukan");
+      throw new Error(
+        "Data penjualan tidak ditemukan atau tidak memiliki akses"
+      );
     }
 
-    // Check jika sudah ada journal
     if (sale.journalId) {
       throw new Error("Penjualan ini sudah memiliki journal");
     }
 
+    const [cashAccount, salesAccount, taxAccount] = await Promise.all([
+      prisma.account.findFirst({ where: { id: cashAccountId, businessId } }),
+      prisma.account.findFirst({ where: { id: salesAccountId, businessId } }),
+      taxAccountId
+        ? prisma.account.findFirst({ where: { id: taxAccountId, businessId } })
+        : null,
+    ]);
+
+    if (!cashAccount) {
+      throw new Error("Cash account tidak ditemukan dalam business ini");
+    }
+    if (!salesAccount) {
+      throw new Error("Sales account tidak ditemukan dalam business ini");
+    }
+    if (taxAccountId && !taxAccount) {
+      throw new Error("Tax account tidak ditemukan dalam business ini");
+    }
+
     const lastJournal = await prisma.journal.findFirst({
       where: {
+        businessId,
         journalNo: { startsWith: "JP" },
       },
       orderBy: { journalNo: "desc" },
@@ -151,6 +199,7 @@ class JournalService {
     return await prisma.$transaction(async (prisma) => {
       const journal = await prisma.journal.create({
         data: {
+          businessId,
           journalNo,
           date: sale.date,
           reference: `Penjualan ${sale.saleNo} - ${sale.customer.name}`,
@@ -160,7 +209,6 @@ class JournalService {
         },
       });
 
-      // Entry untuk kas (debit)
       await prisma.journalEntry.create({
         data: {
           journalId: journal.id,
@@ -172,7 +220,6 @@ class JournalService {
         },
       });
 
-      // Entry untuk penjualan (kredit)
       await prisma.journalEntry.create({
         data: {
           journalId: journal.id,
@@ -184,7 +231,6 @@ class JournalService {
         },
       });
 
-      // Entry untuk pajak jika ada
       if (sale.tax > 0 && taxAccountId) {
         await prisma.journalEntry.create({
           data: {
@@ -198,7 +244,6 @@ class JournalService {
         });
       }
 
-      // Update sale dengan journal ID
       await prisma.sale.update({
         where: { id: saleId },
         data: { journalId: journal.id },
@@ -207,6 +252,7 @@ class JournalService {
       return await prisma.journal.findUnique({
         where: { id: journal.id },
         include: {
+          business: true,
           entries: {
             include: {
               debitAccount: true,
@@ -218,14 +264,17 @@ class JournalService {
     });
   }
 
-  async postJournal(id) {
-    const journal = await prisma.journal.findUnique({
-      where: { id },
+  async postJournal(businessId, id) {
+    const journal = await prisma.journal.findFirst({
+      where: {
+        id,
+        businessId,
+      },
       include: { entries: true },
     });
 
     if (!journal) {
-      throw new Error("Journal tidak ditemukan");
+      throw new Error("Journal tidak ditemukan atau tidak memiliki akses");
     }
 
     if (journal.status === "POSTED") {
@@ -233,7 +282,6 @@ class JournalService {
     }
 
     return await prisma.$transaction(async (prisma) => {
-      // Update status journal
       const updatedJournal = await prisma.journal.update({
         where: { id },
         data: { status: "POSTED" },
@@ -264,13 +312,16 @@ class JournalService {
     });
   }
 
-  async deleteJournal(id) {
-    const journal = await prisma.journal.findUnique({
-      where: { id },
+  async deleteJournal(businessId, id) {
+    const journal = await prisma.journal.findFirst({
+      where: {
+        id,
+        businessId,
+      },
     });
 
     if (!journal) {
-      throw new Error("Journal tidak ditemukan");
+      throw new Error("Journal tidak ditemukan atau tidak memiliki akses");
     }
 
     if (journal.status === "POSTED") {
