@@ -1,6 +1,7 @@
+// D:\BISNIS\dropship\Accountant-AI-BE\routes\role.js
 const express = require("express");
 const RoleController = require("../controllers/roleController");
-const { verifyToken, requirePermission } = require("../middleware/auth");
+const { verifyToken, requirePermission } = require("../middlewares/auth");
 
 const router = express.Router();
 

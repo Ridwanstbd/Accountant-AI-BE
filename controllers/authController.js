@@ -1,3 +1,4 @@
+// controllers/authController.js
 const AuthService = require("../services/authService");
 const {
   registerSchema,

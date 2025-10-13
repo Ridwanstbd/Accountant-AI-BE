@@ -1,3 +1,5 @@
+// D:\BISNIS\dropship\Accountant-AI-BE\middlewares\auth.js
+
 const jwt = require("jsonwebtoken");
 const { prisma } = require("../models");
 

@@ -1,6 +1,7 @@
+// D:\BISNIS\dropship\Accountant-AI-BE\routes\auth.js
 const express = require("express");
 const AuthController = require("../controllers/authController");
-const { verifyToken } = require("../middleware/auth");
+const { verifyToken } = require("../middlewares/auth");
 
 const router = express.Router();
 

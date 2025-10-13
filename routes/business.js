@@ -1,3 +1,4 @@
+// D:\BISNIS\dropship\Accountant-AI-BE\routes\business.js
 const express = require("express");
 const BusinessController = require("../controllers/businessController");
 const {
@@ -5,7 +6,7 @@ const {
   requirePermission,
   requireBusinessPermission,
   requireBusinessMembership,
-} = require("../middleware/auth");
+} = require("../middlewares/auth");
 
 const router = express.Router();
 

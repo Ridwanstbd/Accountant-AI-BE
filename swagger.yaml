@@ -8,6 +8,10 @@ info:
     - Customer Management (Pelanggan)
     - Sales Management (Penjualan)
     - AI Recommendations (Rekomendasi AI)
+    - Authentication & Authorization (Autentikasi & Otorisasi)
+    - User Management (Manajemen Pengguna)
+    - Business Management (Manajemen Bisnis)
+    - Permission & Role Management (Manajemen Izin & Peran)
   version: 1.0.0
   contact:
     name: API Support
@@ -32,6 +36,16 @@ tags:
     description: Sales transactions
   - name: Recommendations
     description: AI-powered business recommendations
+  - name: Authentication
+    description: User authentication and authorization
+  - name: Users
+    description: User management operations
+  - name: Business
+    description: Business management operations
+  - name: Permissions
+    description: Permission management operations
+  - name: Roles
+    description: Role management operations
 
 paths:
   # Health Check
@@ -48,6 +62,1254 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthResponse"
+
+  # Authentication Endpoints
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register User
+      description: Create a new user account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          description: Email already exists
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login User
+      description: Authenticate user and return access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          accessToken:
+                            type: string
+                          refreshToken:
+                            type: string
+                          user:
+                            $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          description: Invalid credentials
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /auth/forgot-password:
+    post:
+      tags:
+        - Authentication
+      summary: Forgot Password
+      description: Send password reset email to user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ForgotPasswordRequest"
+      responses:
+        "200":
+          description: Password reset email sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          description: User not found
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /auth/reset-password:
+    post:
+      tags:
+        - Authentication
+      summary: Reset Password
+      description: Reset user password using reset token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordRequest"
+      responses:
+        "200":
+          description: Password reset successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          description: Invalid or expired token
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /auth/refresh-token:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh Access Token
+      description: Generate a new access token using refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        "200":
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          accessToken:
+                            type: string
+                          refreshToken:
+                            type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          description: Invalid refresh token
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /auth/profile:
+    get:
+      tags:
+        - Authentication
+      summary: Get User Profile
+      description: Get the profile of the currently authenticated user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: User profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/UserProfileResponse"
+        "401":
+          description: Unauthorized
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /auth/join-business:
+    post:
+      tags:
+        - Authentication
+      summary: Join Business
+      description: Join a business using business code and invite code
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JoinBusinessRequest"
+      responses:
+        "200":
+          description: Successfully joined business
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/BusinessUser"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          description: Unauthorized
+        "404":
+          description: Business not found
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /auth/change-password:
+    post:
+      tags:
+        - Authentication
+      summary: Change Password
+      description: Change the current user's password
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordRequest"
+      responses:
+        "200":
+          description: Password changed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          description: Invalid current password
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: Logout
+      description: Logout the current user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Logged out successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "401":
+          description: Unauthorized
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  # User Endpoints
+  /users/profile:
+    put:
+      tags:
+        - Users
+      summary: Update User Profile
+      description: Update profile information for the currently authenticated user
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserRequest"
+      responses:
+        "200":
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /users:
+    get:
+      tags:
+        - Users
+      summary: Get All Users
+      description: Retrieve a list of all users in the system
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: Page number for pagination
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Users retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          description: Insufficient permissions
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      tags:
+        - Users
+      summary: Create User
+      description: Create a new user in the system
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserRequest"
+      responses:
+        "201":
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          description: Insufficient permissions
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /users/{id}:
+    get:
+      tags:
+        - Users
+      summary: Get User by ID
+      description: Retrieve a specific user by their ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: User retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserDetailResponse"
+        "403":
+          description: Insufficient permissions
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    put:
+      tags:
+        - Users
+      summary: Update User
+      description: Update user information
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserRequest"
+      responses:
+        "200":
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "403":
+          description: Insufficient permissions
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    delete:
+      tags:
+        - Users
+      summary: Delete User
+      description: Delete a user from the system
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: User deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "403":
+          description: Insufficient permissions
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /users/{id}/roles:
+    post:
+      tags:
+        - Users
+      summary: Assign Role to User
+      description: Assign a role to a specific user
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignRoleRequest"
+      responses:
+        "200":
+          description: Role assigned successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/UserRole"
+        "403":
+          description: Insufficient permissions
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    delete:
+      tags:
+        - Users
+      summary: Remove Role from User
+      description: Remove a role from a specific user
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+        - name: roleId
+          in: path
+          required: true
+          description: Role ID to remove
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Role removed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "403":
+          description: Insufficient permissions
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /users/{id}/deactivate:
+    patch:
+      tags:
+        - Users
+      summary: Deactivate User
+      description: Deactivate a user account (Super Admin only)
+      security:
+        - bearerAuth: []
+        - superAdminAuth: []
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: User deactivated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "403":
+          description: Insufficient permissions
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /users/{id}/activate:
+    patch:
+      tags:
+        - Users
+      summary: Activate User
+      description: Activate a user account (Super Admin only)
+      security:
+        - bearerAuth: []
+        - superAdminAuth: []
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      responses:
+        "200":
+          description: User activated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "403":
+          description: Insufficient permissions
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  # Business Endpoints
+  /business/my-businesses:
+    get:
+      tags:
+        - Business
+      summary: Get User Businesses
+      description: Retrieve all businesses that the current user is a member of
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Businesses retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Business"
+        "401":
+          description: Unauthorized
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /business:
+    post:
+      tags:
+        - Business
+      summary: Create Business
+      description: Create a new business (requires global permission)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBusinessRequest"
+      responses:
+        "201":
+          description: Business created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/Business"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          description: Insufficient permissions
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /business/{businessId}:
+    get:
+      tags:
+        - Business
+      summary: Get Business by ID
+      description: Retrieve a specific business by its ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BusinessId"
+      responses:
+        "200":
+          description: Business retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/Business"
+        "403":
+          description: Insufficient permissions
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    put:
+      tags:
+        - Business
+      summary: Update Business
+      description: Update business information
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BusinessId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateBusinessRequest"
+      responses:
+        "200":
+          description: Business updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/Business"
+        "403":
+          description: Insufficient permissions
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /business/{businessId}/users:
+    get:
+      tags:
+        - Business
+      summary: Get Business Users
+      description: Retrieve all users in a specific business
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BusinessId"
+        - name: page
+          in: query
+          description: Page number for pagination
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Business users retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/BusinessUser"
+        "403":
+          description: Insufficient permissions
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      tags:
+        - Business
+      summary: Assign User Role
+      description: Assign a role to a user in the business
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BusinessId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignBusinessRoleRequest"
+      responses:
+        "200":
+          description: Role assigned successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/BusinessUser"
+        "403":
+          description: Insufficient permissions
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    delete:
+      tags:
+        - Business
+      summary: Remove User from Business
+      description: Remove a user from the business
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/BusinessId"
+        - name: userId
+          in: path
+          required: true
+          description: User ID to remove
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User removed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "403":
+          description: Insufficient permissions
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  # Permission Endpoints
+  /permissions:
+    get:
+      tags:
+        - Permissions
+      summary: Get All Permissions
+      description: Retrieve a list of all permissions in the system
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Permissions retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Permission"
+        "403":
+          description: Insufficient permissions
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      tags:
+        - Permissions
+      summary: Create Permission
+      description: Create a new permission (requires permission_create)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePermissionRequest"
+      responses:
+        "201":
+          description: Permission created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/Permission"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          description: Insufficient permissions
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      tags:
+        - Permissions
+      summary: Create Multiple Permissions
+      description: Create multiple permissions at once (requires permission_create)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMultiplePermissionsRequest"
+      responses:
+        "201":
+          description: Permissions created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Permission"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          description: Insufficient permissions
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /permissions/modules:
+    get:
+      tags:
+        - Permissions
+      summary: Get Permissions by Module
+      description: Retrieve permissions grouped by module (requires permission_view)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Permissions retrieved by module successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        additionalProperties:
+                          type: array
+                          items:
+                            $ref: "#/components/schemas/Permission"
+        "403":
+          description: Insufficient permissions
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /permissions/{id}:
+    get:
+      tags:
+        - Permissions
+      summary: Get Permission by ID
+      description: Retrieve a specific permission by its ID (requires permission_view)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PermissionId"
+      responses:
+        "200":
+          description: Permission retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/Permission"
+        "403":
+          description: Insufficient permissions
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    put:
+      tags:
+        - Permissions
+      summary: Update Permission
+      description: Update an existing permission (requires permission_update)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PermissionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePermissionRequest"
+      responses:
+        "200":
+          description: Permission updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/Permission"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          description: Insufficient permissions
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    delete:
+      tags:
+        - Permissions
+      summary: Delete Permission
+      description: Delete a permission (requires permission_delete)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/PermissionId"
+      responses:
+        "200":
+          description: Permission deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "403":
+          description: Insufficient permissions
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  # Role Endpoints
+  /roles:
+    get:
+      tags:
+        - Roles
+      summary: Get All Roles
+      description: Retrieve a list of all roles in the system
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Roles retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Role"
+        "403":
+          description: Insufficient permissions
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      tags:
+        - Roles
+      summary: Create Role
+      description: Create a new role (requires role_create)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRoleRequest"
+      responses:
+        "201":
+          description: Role created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/Role"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          description: Insufficient permissions
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /roles/{id}:
+    get:
+      tags:
+        - Roles
+      summary: Get Role by ID
+      description: Retrieve a specific role by its ID (requires role_view)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/RoleId"
+      responses:
+        "200":
+          description: Role retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/Role"
+        "403":
+          description: Insufficient permissions
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    put:
+      tags:
+        - Roles
+      summary: Update Role
+      description: Update an existing role (requires role_update)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/RoleId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateRoleRequest"
+      responses:
+        "200":
+          description: Role updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/Role"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          description: Insufficient permissions
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    delete:
+      tags:
+        - Roles
+      summary: Delete Role
+      description: Delete a role (requires role_delete)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/RoleId"
+      responses:
+        "200":
+          description: Role deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "403":
+          description: Insufficient permissions
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /roles/{id}/permissions:
+    post:
+      tags:
+        - Roles
+      summary: Assign Permission to Role
+      description: Assign a permission to a role (requires role_assign_permissions)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/RoleId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignPermissionRequest"
+      responses:
+        "200":
+          description: Permission assigned successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/RolePermission"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          description: Insufficient permissions
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    post:
+      tags:
+        - Roles
+      summary: Assign Multiple Permissions to Role
+      description: Assign multiple permissions to a role (requires role_assign_permissions)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/RoleId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignMultiplePermissionsRequest"
+      responses:
+        "200":
+          description: Permissions assigned successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/RolePermission"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          description: Insufficient permissions
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+    delete:
+      tags:
+        - Roles
+      summary: Remove Permission from Role
+      description: Remove a permission from a role (requires role_assign_permissions)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/RoleId"
+        - name: permissionId
+          in: path
+          required: true
+          description: Permission ID to remove
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Permission removed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "403":
+          description: Insufficient permissions
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
   # Accounts Endpoints
   /accounts:
@@ -863,6 +2125,17 @@ paths:
                 $ref: "#/components/schemas/RegenerateResponse"
 
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    superAdminAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Requires superadmin role
+
   parameters:
     AccountId:
       name: id
@@ -901,6 +2174,38 @@ components:
       in: path
       required: true
       description: Recommendation ID
+      schema:
+        type: string
+
+    UserId:
+      name: id
+      in: path
+      required: true
+      description: User ID
+      schema:
+        type: string
+
+    BusinessId:
+      name: businessId
+      in: path
+      required: true
+      description: Business ID
+      schema:
+        type: string
+
+    PermissionId:
+      name: id
+      in: path
+      required: true
+      description: Permission ID
+      schema:
+        type: string
+
+    RoleId:
+      name: id
+      in: path
+      required: true
+      description: Role ID
       schema:
         type: string
 
@@ -962,6 +2267,504 @@ components:
             timestamp:
               type: string
               format: date-time
+
+    # User Management Schemas
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          format: email
+        username:
+          type: string
+        isSuperAdmin:
+          type: boolean
+        isActive:
+          type: boolean
+        profile:
+          type: object
+          properties:
+            firstName:
+              type: string
+            lastName:
+              type: string
+            phone:
+              type: string
+            avatar:
+              type: string
+              format: uri
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    UserProfileResponse:
+      allOf:
+        - $ref: "#/components/schemas/User"
+        - type: object
+          properties:
+            globalRoles:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  name:
+                    type: string
+                  displayName:
+                    type: string
+            businesses:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  name:
+                    type: string
+                  code:
+                    type: string
+                  role:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      name:
+                        type: string
+                      displayName:
+                        type: string
+                  isActive:
+                    type: boolean
+                  joinedAt:
+                    type: string
+                    format: date-time
+            globalPermissions:
+              type: array
+              items:
+                type: string
+            businessPermissions:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  type: string
+
+    CreateUserRequest:
+      type: object
+      properties:
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+        profile:
+          type: object
+          properties:
+            firstName:
+              type: string
+            lastName:
+              type: string
+            phone:
+              type: string
+      required:
+        - username
+        - email
+        - password
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        username:
+          type: string
+        profile:
+          type: object
+          properties:
+            firstName:
+              type: string
+            lastName:
+              type: string
+            phone:
+              type: string
+            avatar:
+              type: string
+              format: uri
+
+    UserResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessResponse"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/User"
+
+    UserDetailResponse:
+      allOf:
+        - $ref: "#/components/schemas/SuccessResponse"
+        - type: object
+          properties:
+            data:
+              $ref: "#/components/schemas/User"
+
+    UserRole:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        roleId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        role:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            displayName:
+              type: string
+            description:
+              type: string
+
+    AssignRoleRequest:
+      type: object
+      properties:
+        roleId:
+          type: string
+          description: Role ID to assign
+      required:
+        - roleId
+
+    # Business Management Schemas
+    Business:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        code:
+          type: string
+        description:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateBusinessRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Business name
+        code:
+          type: string
+          description: Unique business code
+        description:
+          type: string
+          description: Business description
+      required:
+        - name
+        - code
+
+    UpdateBusinessRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+
+    BusinessUser:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        businessId:
+          type: string
+        roleId:
+          type: string
+        isActive:
+          type: boolean
+        joinedAt:
+          type: string
+          format: date-time
+        user:
+          $ref: "#/components/schemas/User"
+        business:
+          $ref: "#/components/schemas/Business"
+        role:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            displayName:
+              type: string
+            permissions:
+              type: array
+              items:
+                type: string
+
+    AssignBusinessRoleRequest:
+      type: object
+      properties:
+        userId:
+          type: string
+          description: User ID to assign role to
+        roleId:
+          type: string
+          description: Role ID to assign
+      required:
+        - userId
+        - roleId
+
+    # Permission Management Schemas
+    Permission:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        displayName:
+          type: string
+        module:
+          type: string
+        description:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreatePermissionRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Permission name (e.g., user_create)
+        displayName:
+          type: string
+          description: Display name for the permission
+        module:
+          type: string
+          description: Module this permission belongs to
+        description:
+          type: string
+          description: Description of the permission
+      required:
+        - name
+        - displayName
+        - module
+
+    CreateMultiplePermissionsRequest:
+      type: object
+      properties:
+        permissions:
+          type: array
+          items:
+            $ref: "#/components/schemas/CreatePermissionRequest"
+      required:
+        - permissions
+
+    UpdatePermissionRequest:
+      type: object
+      properties:
+        displayName:
+          type: string
+        description:
+          type: string
+
+    # Role Management Schemas
+    Role:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        displayName:
+          type: string
+        description:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        permissions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Permission"
+
+    CreateRoleRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Role name (e.g., admin)
+        displayName:
+          type: string
+          description: Display name for the role
+        description:
+          type: string
+          description: Description of the role
+      required:
+        - name
+        - displayName
+
+    UpdateRoleRequest:
+      type: object
+      properties:
+        displayName:
+          type: string
+        description:
+          type: string
+
+    RolePermission:
+      type: object
+      properties:
+        id:
+          type: string
+        roleId:
+          type: string
+        permissionId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        role:
+          $ref: "#/components/schemas/Role"
+        permission:
+          $ref: "#/components/schemas/Permission"
+
+    AssignPermissionRequest:
+      type: object
+      properties:
+        permissionId:
+          type: string
+          description: Permission ID to assign
+      required:
+        - permissionId
+
+    AssignMultiplePermissionsRequest:
+      type: object
+      properties:
+        permissionIds:
+          type: array
+          items:
+            type: string
+          description: Array of permission IDs to assign
+      required:
+        - permissionIds
+
+    # Authentication Schemas
+    RegisterRequest:
+      type: object
+      properties:
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+        profile:
+          type: object
+          properties:
+            firstName:
+              type: string
+            lastName:
+              type: string
+            phone:
+              type: string
+      required:
+        - username
+        - email
+        - password
+
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+      required:
+        - email
+        - password
+
+    ForgotPasswordRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+      required:
+        - email
+
+    ResetPasswordRequest:
+      type: object
+      properties:
+        token:
+          type: string
+          description: Password reset token
+        password:
+          type: string
+          format: password
+      required:
+        - token
+        - password
+
+    JoinBusinessRequest:
+      type: object
+      properties:
+        businessCode:
+          type: string
+          description: Business code to join
+        inviteCode:
+          type: string
+          description: Invite code for the business
+      required:
+        - businessCode
+        - inviteCode
+
+    ChangePasswordRequest:
+      type: object
+      properties:
+        currentPassword:
+          type: string
+          format: password
+        newPassword:
+          type: string
+          format: password
+      required:
+        - currentPassword
+        - newPassword
 
     # Account Schemas
     Account:

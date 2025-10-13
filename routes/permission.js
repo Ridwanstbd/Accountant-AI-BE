@@ -1,6 +1,7 @@
+// D:\BISNIS\dropship\Accountant-AI-BE\routes\permission.js
 const express = require("express");
 const PermissionController = require("../controllers/permissionController");
-const { verifyToken, requirePermission } = require("../middleware/auth");
+const { verifyToken, requirePermission } = require("../middlewares/auth");
 
 const router = express.Router();
 

@@ -1,10 +1,11 @@
+// D:\BISNIS\dropship\Accountant-AI-BE\routes\user.js
 const express = require("express");
 const UserController = require("../controllers/userController");
 const {
   verifyToken,
   requirePermission,
   requireSuperAdmin,
-} = require("../middleware/auth");
+} = require("../middlewares/auth");
 
 const router = express.Router();
 
