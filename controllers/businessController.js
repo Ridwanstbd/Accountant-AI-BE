@@ -1,19 +1,8 @@
-// D:\BISNIS\dropship\Accountant-AI-BE\controllers\businessController.js
 const BusinessService = require("../services/businessService");
-const {
-  createBusinessSchema,
-  updateBusinessSchema,
-  assignBusinessRoleSchema,
-} = require("../validators/businessValidator");
 
 class BusinessController {
   static async createBusiness(req, res) {
     try {
-      const { error } = createBusinessSchema.validate(req.body);
-      if (error) {
-        return res.status(400).json({ message: error.details[0].message });
-      }
-
       const business = await BusinessService.createBusiness(req.body);
 
       res.status(201).json({
@@ -38,11 +27,6 @@ class BusinessController {
 
   static async updateBusiness(req, res) {
     try {
-      const { error } = updateBusinessSchema.validate(req.body);
-      if (error) {
-        return res.status(400).json({ message: error.details[0].message });
-      }
-
       const { businessId } = req.params;
       const business = await BusinessService.updateBusiness(
         businessId,
@@ -68,7 +52,6 @@ class BusinessController {
         page,
         limit
       );
-
       res.json(result);
     } catch (error) {
       res.status(500).json({ message: error.message });
@@ -77,11 +60,6 @@ class BusinessController {
 
   static async assignUserRole(req, res) {
     try {
-      const { error } = assignBusinessRoleSchema.validate(req.body);
-      if (error) {
-        return res.status(400).json({ message: error.details[0].message });
-      }
-
       const { businessId } = req.params;
       const { userId, roleId } = req.body;
 
@@ -116,9 +94,6 @@ class BusinessController {
 
   static async getUserBusinesses(req, res) {
     try {
-      const userId = req.user.id;
-
-      // Get businesses where user is a member
       const businesses =
         req.user.businessUsers
           ?.filter((bu) => bu.isActive)

@@ -1,15 +1,36 @@
 const { prisma } = require("../models");
 
 class BusinessService {
-  static async createBusiness(bussinessData) {
-    const { code, name, description, address, phone, email } = businessData;
+  static async generateUniqueCode(name) {
+    let isUnique = false;
+    let generatedCode = "";
 
-    const existingBusiness = await prisma.business.findUnique({
-      where: { code },
-    });
+    while (!isUnique) {
+      const prefix = name.substring(0, 3).toUpperCase().replace(/\s/g, "X");
+      const randomPart = crypto.randomBytes(2).toString("hex").toUpperCase();
+      generatedCode = `${prefix}-${randomPart}`;
 
-    if (existingBusiness) {
-      throw new Error("Business code already exists");
+      const existing = await prisma.business.findUnique({
+        where: { code: generatedCode },
+      });
+
+      if (!existing) isUnique = true;
+    }
+    return generatedCode;
+  }
+
+  static async createBusiness(businessData) {
+    let { code, name, description, address, phone, email } = businessData;
+
+    if (!code) {
+      code = await this.generateUniqueCode(name);
+    } else {
+      const existingBusiness = await prisma.business.findUnique({
+        where: { code },
+      });
+      if (existingBusiness) {
+        throw new Error("Business code already exists");
+      }
     }
 
     const business = await prisma.business.create({

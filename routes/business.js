@@ -1,6 +1,12 @@
-// D:\BISNIS\dropship\Accountant-AI-BE\routes\business.js
 const express = require("express");
 const BusinessController = require("../controllers/businessController");
+const validate = require("../middlewares/validate");
+const {
+  createBusinessSchema,
+  updateBusinessSchema,
+  assignBusinessRoleSchema,
+} = require("../validators/businessValidator");
+
 const {
   verifyToken,
   requirePermission,
@@ -10,42 +16,43 @@ const {
 
 const router = express.Router();
 
-// All routes require authentication
 router.use(verifyToken);
 
-// Get user's businesses
 router.get("/my-businesses", BusinessController.getUserBusinesses);
 
-// Create business (require global permission)
 router.post(
   "/",
   requirePermission("business_create"),
+  validate(createBusinessSchema),
   BusinessController.createBusiness
 );
 
-// Business-specific routes
 router.get(
   "/:businessId",
   requireBusinessMembership,
   BusinessController.getBusinessById
 );
+
 router.put(
   "/:businessId",
   requireBusinessPermission("business_update"),
+  validate(updateBusinessSchema),
   BusinessController.updateBusiness
 );
 
-// Business user management
 router.get(
   "/:businessId/users",
   requireBusinessPermission("business_manage_users"),
   BusinessController.getBusinessUsers
 );
+
 router.post(
   "/:businessId/users",
   requireBusinessPermission("business_manage_users"),
+  validate(assignBusinessRoleSchema),
   BusinessController.assignUserRole
 );
+
 router.delete(
   "/:businessId/users/:userId",
   requireBusinessPermission("business_manage_users"),

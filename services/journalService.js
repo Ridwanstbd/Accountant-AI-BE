@@ -1,4 +1,3 @@
-// services/journalService.js
 const { prisma } = require("../models");
 const {
   generateJournalNumber,

@@ -3,12 +3,8 @@ const accountService = require("../services/accountService");
 class AccountController {
   async getAllAccounts(req, res, next) {
     try {
-      const { type, category, active } = req.query;
-      const accounts = await accountService.getAllAccounts({
-        type,
-        category,
-        active,
-      });
+      const businessId = req.headers["x-business-id"];
+      const accounts = await accountService.getAllAccounts(businessId, req.query);
 
       res.status(200).json({
         success: true,
@@ -22,8 +18,9 @@ class AccountController {
 
   async getAccountById(req, res, next) {
     try {
+      const businessId = req.headers["x-business-id"];
       const { id } = req.params;
-      const account = await accountService.getAccountById(id);
+      const account = await accountService.getAccountById(businessId, id);
 
       if (!account) {
         return res.status(404).json({
@@ -44,7 +41,8 @@ class AccountController {
 
   async createAccount(req, res, next) {
     try {
-      const account = await accountService.createAccount(req.body);
+      const businessId = req.headers["x-business-id"];
+      const account = await accountService.createAccount(businessId, req.body);
 
       res.status(201).json({
         success: true,
@@ -58,8 +56,9 @@ class AccountController {
 
   async updateAccount(req, res, next) {
     try {
+      const businessId = req.headers["x-business-id"];
       const { id } = req.params;
-      const account = await accountService.updateAccount(id, req.body);
+      const account = await accountService.updateAccount(businessId, id, req.body);
 
       res.status(200).json({
         success: true,
@@ -73,8 +72,9 @@ class AccountController {
 
   async deactivateAccount(req, res, next) {
     try {
+      const businessId = req.headers["x-business-id"];
       const { id } = req.params;
-      const account = await accountService.deactivateAccount(id);
+      const account = await accountService.deactivateAccount(businessId, id);
 
       res.status(200).json({
         success: true,
@@ -88,7 +88,8 @@ class AccountController {
 
   async getTrialBalance(req, res, next) {
     try {
-      const trialBalance = await accountService.getTrialBalance();
+      const businessId = req.headers["x-business-id"];
+      const trialBalance = await accountService.getTrialBalance(businessId);
 
       res.status(200).json({
         success: true,

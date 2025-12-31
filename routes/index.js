@@ -9,6 +9,7 @@ const accountRoutes = require("./accounts");
 const journalRoutes = require("./journals");
 const customerRoutes = require("./customers");
 const salesRoutes = require("./sales");
+const reportRoutes = require("./reports");
 const recommendationRoutes = require("./recommendations");
 
 const router = express.Router();
@@ -22,6 +23,7 @@ router.use("/accounts", accountRoutes);
 router.use("/journals", journalRoutes);
 router.use("/customers", customerRoutes);
 router.use("/sales", salesRoutes);
+router.use("/reports", reportRoutes);
 router.use("/recommendations", recommendationRoutes);
 
 router.get("/health", (req, res) => {

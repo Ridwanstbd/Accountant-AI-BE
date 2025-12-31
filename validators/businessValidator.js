@@ -1,7 +1,7 @@
 const Joi = require("joi");
 
 const createBusinessSchema = Joi.object({
-  code: Joi.string().min(2).max(20).alphanum().required(),
+  code: Joi.string().min(2).max(20).alphanum().optional(),
   name: Joi.string().min(2).max(100).required(),
   description: Joi.string().max(500).optional(),
   address: Joi.string().max(500).optional(),
