@@ -3,14 +3,16 @@ const BusinessService = require("../services/businessService");
 class BusinessController {
   static async createBusiness(req, res) {
     try {
-      const business = await BusinessService.createBusiness(req.body);
+      const userId = req.user.id;
+      const business = await BusinessService.createBusiness(userId, req.body);
 
       res.status(201).json({
-        message: "Business created successfully",
-        business,
+        success: true,
+        message: "Business created and linked to your account.",
+        data: business,
       });
     } catch (error) {
-      res.status(400).json({ message: error.message });
+      res.status(400).json({ success: false, message: error.message });
     }
   }
 
@@ -111,7 +113,11 @@ class BusinessController {
             joinedAt: bu.joinedAt,
           })) || [];
 
-      res.json({ businesses });
+      res.json({
+        success: true,
+        message: "Business retrivied successfully!",
+        data: businesses,
+      });
     } catch (error) {
       res.status(500).json({ message: error.message });
     }

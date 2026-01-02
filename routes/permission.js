@@ -1,60 +1,24 @@
 // D:\BISNIS\dropship\Accountant-AI-BE\routes\permission.js
 const express = require("express");
 const PermissionController = require("../controllers/permissionController");
-const { verifyToken, requirePermission } = require("../middlewares/auth");
+const { verifyToken } = require("../middlewares/auth");
 
 const router = express.Router();
 
-// All routes require authentication
 router.use(verifyToken);
 
-// Get permissions (require permission_view)
-router.get(
-  "/",
-  requirePermission("permission_view"),
-  PermissionController.getPermissions
-);
+router.get("/", PermissionController.getPermissions);
 
-// Get permissions grouped by module (require permission_view)
-router.get(
-  "/modules",
-  requirePermission("permission_view"),
-  PermissionController.getPermissionsByModule
-);
+router.get("/modules", PermissionController.getPermissionsByModule);
 
-// Get permission by ID (require permission_view)
-router.get(
-  "/:id",
-  requirePermission("permission_view"),
-  PermissionController.getPermissionById
-);
+router.get("/:id", PermissionController.getPermissionById);
 
-// Create permission (require permission_create)
-router.post(
-  "/",
-  requirePermission("permission_create"),
-  PermissionController.createPermission
-);
+router.post("/", PermissionController.createPermission);
 
-// Create multiple permissions (require permission_create)
-router.post(
-  "/bulk",
-  requirePermission("permission_create"),
-  PermissionController.createMultiplePermissions
-);
+router.post("/bulk", PermissionController.createMultiplePermissions);
 
-// Update permission (require permission_update)
-router.put(
-  "/:id",
-  requirePermission("permission_update"),
-  PermissionController.updatePermission
-);
+router.put("/:id", PermissionController.updatePermission);
 
-// Delete permission (require permission_delete)
-router.delete(
-  "/:id",
-  requirePermission("permission_delete"),
-  PermissionController.deletePermission
-);
+router.delete("/:id", PermissionController.deletePermission);
 
 module.exports = router;

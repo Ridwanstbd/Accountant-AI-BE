@@ -1,46 +1,25 @@
-// D:\BISNIS\dropship\Accountant-AI-BE\routes\role.js
 const express = require("express");
 const RoleController = require("../controllers/roleController");
-const { verifyToken, requirePermission } = require("../middlewares/auth");
+const { verifyToken } = require("../middlewares/auth");
 
 const router = express.Router();
 
-// All routes require authentication
 router.use(verifyToken);
 
-// Get roles (require role_view permission)
-router.get("/", requirePermission("role_view"), RoleController.getRoles);
+router.get("/", RoleController.getRoles);
 
-// Get role by ID (require role_view permission)
-router.get("/:id", requirePermission("role_view"), RoleController.getRoleById);
+router.get("/:id", RoleController.getRoleById);
 
-// Create role (require role_create permission)
-router.post("/", requirePermission("role_create"), RoleController.createRole);
+router.post("/", RoleController.createRole);
 
-// Update role (require role_update permission)
-router.put("/:id", requirePermission("role_update"), RoleController.updateRole);
+router.put("/:id", RoleController.updateRole);
 
-// Delete role (require role_delete permission)
-router.delete(
-  "/:id",
-  requirePermission("role_delete"),
-  RoleController.deleteRole
-);
+router.delete("/:id", RoleController.deleteRole);
 
-// Permission management (require role_assign_permissions permission)
-router.post(
-  "/:id/permissions",
-  requirePermission("role_assign_permissions"),
-  RoleController.assignPermission
-);
-router.post(
-  "/:id/permissions/bulk",
-  requirePermission("role_assign_permissions"),
-  RoleController.assignMultiplePermissions
-);
+router.post("/:id/permissions", RoleController.assignPermission);
+router.post("/:id/permissions/bulk", RoleController.assignMultiplePermissions);
 router.delete(
   "/:id/permissions/:permissionId",
-  requirePermission("role_assign_permissions"),
   RoleController.removePermission
 );
 

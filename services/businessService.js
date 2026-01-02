@@ -1,4 +1,5 @@
 const { prisma } = require("../models");
+const crypto = require("crypto");
 
 class BusinessService {
   static async generateUniqueCode(name) {
@@ -19,7 +20,7 @@ class BusinessService {
     return generatedCode;
   }
 
-  static async createBusiness(businessData) {
+  static async createBusiness(userId, businessData) {
     let { code, name, description, address, phone, email } = businessData;
 
     if (!code) {
@@ -33,18 +34,39 @@ class BusinessService {
       }
     }
 
-    const business = await prisma.business.create({
-      data: {
-        code,
-        name,
-        description,
-        address,
-        phone,
-        email,
-      },
-    });
+    return await prisma.$transaction(async (tx) => {
+      const business = await tx.business.create({
+        data: {
+          code,
+          name,
+          description,
+          address,
+          phone,
+          email,
+        },
+      });
 
-    return business;
+      const adminRole = await tx.role.findUnique({
+        where: { name: "admin" },
+      });
+
+      if (!adminRole) {
+        throw new Error(
+          "Role 'admin' tidak ditemukan. Pastikan seeder sudah dijalankan."
+        );
+      }
+
+      await tx.businessUser.create({
+        data: {
+          businessId: business.id,
+          userId: userId,
+          roleId: adminRole.id,
+          isActive: true,
+        },
+      });
+
+      return business;
+    });
   }
 
   static async getBusinessById(id) {

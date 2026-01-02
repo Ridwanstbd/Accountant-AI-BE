@@ -10,9 +10,7 @@ class AuthService {
     const { email, username, password, firstName, lastName } = userData;
 
     const existingUser = await prisma.user.findFirst({
-      where: {
-        OR: [{ email }, { username }],
-      },
+      where: { OR: [{ email }, { username }] },
     });
 
     if (existingUser) {
@@ -21,29 +19,44 @@ class AuthService {
 
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    const user = await prisma.user.create({
-      data: {
-        email,
-        username,
-        password: hashedPassword,
-        profile: {
-          create: {
-            firstName,
-            lastName,
+    return await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          email,
+          username,
+          password: hashedPassword,
+          profile: {
+            create: { firstName, lastName },
           },
         },
-      },
-      include: {
-        profile: true,
-      },
-    });
+        include: { profile: true },
+      });
 
-    return {
-      id: user.id,
-      email: user.email,
-      username: user.username,
-      profile: user.profile,
-    };
+      const adminRole = await tx.role.findUnique({
+        where: { name: "admin" },
+      });
+
+      if (!adminRole) {
+        throw new Error(
+          "Global role 'admin' not found. Please run seeder first."
+        );
+      }
+
+      await tx.userRole.create({
+        data: {
+          userId: user.id,
+          roleId: adminRole.id,
+        },
+      });
+
+      return {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        profile: user.profile,
+        role: "admin",
+      };
+    });
   }
 
   static async login(email, password) {
@@ -97,7 +110,7 @@ class AuthService {
     const businessPermissions = this.getBusinessPermissions(user);
 
     return {
-      user: {
+      data: {
         id: user.id,
         email: user.email,
         username: user.username,
@@ -119,6 +132,54 @@ class AuthService {
       accessToken,
       refreshToken,
     };
+  }
+
+  static async inviteStaff(businessId, staffData) {
+    const { email, username, password, firstName, lastName, roleName } =
+      staffData;
+
+    const existingUser = await prisma.user.findFirst({
+      where: { OR: [{ email }, { username }] },
+    });
+
+    if (existingUser) {
+      throw new Error("Email atau Username sudah terdaftar");
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    return await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          email,
+          username,
+          password: hashedPassword,
+          profile: {
+            create: { firstName, lastName },
+          },
+        },
+      });
+
+      const globalRole = await tx.role.findUnique({
+        where: { name: roleName },
+      });
+      if (!globalRole)
+        throw new Error(`Role ${roleName} tidak ditemukan di sistem`);
+
+      await tx.userRole.create({
+        data: { userId: user.id, roleId: globalRole.id },
+      });
+      await tx.businessUser.create({
+        data: {
+          businessId: businessId,
+          userId: user.id,
+          roleId: globalRole.id,
+          isActive: true,
+        },
+      });
+
+      return user;
+    });
   }
 
   static async joinBusiness(userId, businessCode, inviteCode = null) {

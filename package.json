@@ -9,6 +9,7 @@
     "db:generate": "prisma generate",
     "swagger:validate": "swagger-codegen validate -i swagger.yaml",
     "docs:serve": "swagger-ui-serve swagger.yaml",
+    "db:sync": "node utils/syncPermissions.js",
     "db:seed": "node prisma/seed.js"
   },
   "keywords": [],

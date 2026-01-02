@@ -7,12 +7,7 @@ const {
   assignBusinessRoleSchema,
 } = require("../validators/businessValidator");
 
-const {
-  verifyToken,
-  requirePermission,
-  requireBusinessPermission,
-  requireBusinessMembership,
-} = require("../middlewares/auth");
+const { verifyToken } = require("../middlewares/auth");
 
 const router = express.Router();
 
@@ -22,41 +17,26 @@ router.get("/my-businesses", BusinessController.getUserBusinesses);
 
 router.post(
   "/",
-  requirePermission("business_create"),
   validate(createBusinessSchema),
   BusinessController.createBusiness
 );
 
-router.get(
-  "/:businessId",
-  requireBusinessMembership,
-  BusinessController.getBusinessById
-);
+router.get("/:businessId", BusinessController.getBusinessById);
 
 router.put(
   "/:businessId",
-  requireBusinessPermission("business_update"),
   validate(updateBusinessSchema),
   BusinessController.updateBusiness
 );
 
-router.get(
-  "/:businessId/users",
-  requireBusinessPermission("business_manage_users"),
-  BusinessController.getBusinessUsers
-);
+router.get("/:businessId/users", BusinessController.getBusinessUsers);
 
 router.post(
   "/:businessId/users",
-  requireBusinessPermission("business_manage_users"),
   validate(assignBusinessRoleSchema),
   BusinessController.assignUserRole
 );
 
-router.delete(
-  "/:businessId/users/:userId",
-  requireBusinessPermission("business_manage_users"),
-  BusinessController.removeUser
-);
+router.delete("/:businessId/users/:userId", BusinessController.removeUser);
 
 module.exports = router;

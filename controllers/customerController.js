@@ -16,6 +16,29 @@ class CustomerController {
     }
   }
 
+  async getCustomerById(req, res, next) {
+    try {
+      const businessId = req.headers["x-business-id"];
+      const { id } = req.params;
+
+      const customer = await customerService.getCustomerById(businessId, id);
+
+      if (!customer) {
+        return res.status(404).json({
+          success: false,
+          message: "Customer not found",
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        data: customer,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async createCustomer(req, res, next) {
     try {
       const businessId = req.headers["x-business-id"];

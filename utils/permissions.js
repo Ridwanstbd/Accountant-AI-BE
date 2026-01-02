@@ -33,6 +33,7 @@ const PERMISSIONS = {
   ACCOUNT_CREATE: "account_create",
   ACCOUNT_UPDATE: "account_update",
   ACCOUNT_DELETE: "account_delete",
+  ACCOUNT_TRIAL_BALANCE: "account_trial_balance",
 
   // Journal
   JOURNAL_VIEW: "journal_view",
@@ -57,6 +58,10 @@ const PERMISSIONS = {
   AI_RECOMMENDATION_VIEW: "ai_recommendation_view",
   AI_RECOMMENDATION_CREATE: "ai_recommendation_create",
   AI_RECOMMENDATION_DELETE: "ai_recommendation_delete",
+
+  // Report
+  REPORT_VIEW: "report_view",
+  REPORT_EXPORT: "report_export",
 };
 
 const MODULES = {
@@ -69,6 +74,7 @@ const MODULES = {
   SALE: "sale",
   CUSTOMER: "customer",
   AI: "ai",
+  REPORT: "report",
 };
 
 const DEFAULT_PERMISSIONS = [
@@ -155,6 +161,11 @@ const DEFAULT_PERMISSIONS = [
   {
     name: PERMISSIONS.ACCOUNT_DELETE,
     displayName: "Delete Accounts",
+    module: MODULES.ACCOUNT,
+  },
+  {
+    name: PERMISSIONS.ACCOUNT_TRIAL_BALANCE,
+    displayName: "Account Trial Balance",
     module: MODULES.ACCOUNT,
   },
 
@@ -244,6 +255,17 @@ const DEFAULT_PERMISSIONS = [
     name: PERMISSIONS.AI_RECOMMENDATION_DELETE,
     displayName: "Delete AI Recommendations",
     module: MODULES.AI,
+  },
+
+  {
+    name: PERMISSIONS.REPORT_VIEW,
+    displayName: "View Financial Reports",
+    module: MODULES.REPORT,
+  },
+  {
+    name: PERMISSIONS.REPORT_EXPORT,
+    displayName: "Export Reports (Excel/PDF)",
+    module: MODULES.REPORT,
   },
 ];
 

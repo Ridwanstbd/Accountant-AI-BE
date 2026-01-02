@@ -5,279 +5,193 @@ const { DEFAULT_PERMISSIONS } = require("../utils/permissions");
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log("🌱 Seeding database...");
+  console.log("🌱 Memulai Idempotent Seeding (Syncing Data)...");
 
-  // Create permissions using the predefined list
-  console.log("Creating permissions...");
-  for (const permission of DEFAULT_PERMISSIONS) {
+  // 1. SEED PERMISSIONS (Idempotent: Menggunakan upsert)
+  console.log("- Sinkronisasi Permissions...");
+  for (const p of DEFAULT_PERMISSIONS) {
     await prisma.permission.upsert({
-      where: { name: permission.name },
-      update: {},
-      create: permission,
+      where: { name: p.name },
+      update: { displayName: p.displayName, module: p.module },
+      create: p,
+    });
+  }
+  const allPerms = await prisma.permission.findMany();
+
+  // 2. SEED ROLES
+  console.log("- Sinkronisasi Roles...");
+  const rolesData = [
+    { name: "super_admin", displayName: "Application Owner (Root)" },
+    { name: "admin", displayName: "Business Owner (SaaS Client)" },
+    { name: "accountant", displayName: "Professional Accountant" },
+    { name: "user", displayName: "Regular Staff" },
+  ];
+
+  const roles = {};
+  for (const r of rolesData) {
+    roles[r.name] = await prisma.role.upsert({
+      where: { name: r.name },
+      update: { displayName: r.displayName },
+      create: r,
     });
   }
 
-  // Create roles
-  console.log("Creating roles...");
-  const superAdminRole = await prisma.role.upsert({
-    where: { name: "super_admin" },
-    update: {},
-    create: {
-      name: "super_admin",
-      displayName: "Super Administrator",
-    },
-  });
-
-  const adminRole = await prisma.role.upsert({
-    where: { name: "admin" },
-    update: {},
-    create: {
-      name: "admin",
-      displayName: "Administrator",
-    },
-  });
-
-  const managerRole = await prisma.role.upsert({
-    where: { name: "manager" },
-    update: {},
-    create: {
-      name: "manager",
-      displayName: "Manager",
-    },
-  });
-
-  const userRole = await prisma.role.upsert({
-    where: { name: "user" },
-    update: {},
-    create: {
-      name: "user",
-      displayName: "User",
-    },
-  });
-
-  // Assign all permissions to super admin role
-  console.log("Assigning permissions to roles...");
-  const allPermissions = await prisma.permission.findMany();
-  for (const permission of allPermissions) {
+  // 3. HUBUNGKAN PERMISSION KE ROLE (Idempotent: Menggunakan upsert dengan unique compound key)
+  console.log("🔗 Sinkronisasi Role-Permissions...");
+  for (const p of allPerms) {
+    // --- Super Admin (Semua Akses) ---
     await prisma.rolePermission.upsert({
       where: {
         roleId_permissionId: {
-          roleId: superAdminRole.id,
-          permissionId: permission.id,
+          roleId: roles["super_admin"].id,
+          permissionId: p.id,
         },
       },
       update: {},
-      create: {
-        roleId: superAdminRole.id,
-        permissionId: permission.id,
-      },
+      create: { roleId: roles["super_admin"].id, permissionId: p.id },
     });
-  }
 
-  // Assign business and user permissions to admin role
-  const adminPermissions = allPermissions.filter(
-    (p) =>
-      p.name.includes("business_") ||
-      p.name.includes("user_") ||
-      p.name.includes("role_") ||
-      p.name.includes("account_") ||
+    // --- Admin (Semua kecuali modul permission) ---
+    if (p.module !== "permission") {
+      await prisma.rolePermission.upsert({
+        where: {
+          roleId_permissionId: {
+            roleId: roles["admin"].id,
+            permissionId: p.id,
+          },
+        },
+        update: {},
+        create: { roleId: roles["admin"].id, permissionId: p.id },
+      });
+    }
+
+    // --- Accountant (Hanya Keuangan & Report) ---
+    const isAccountantPerm =
+      p.name.includes("report_") ||
       p.name.includes("journal_") ||
-      p.name.includes("sale_") ||
-      p.name.includes("customer_")
-  );
+      p.name.includes("account_view") ||
+      p.name === "sale_view";
 
-  for (const permission of adminPermissions) {
-    await prisma.rolePermission.upsert({
-      where: {
-        roleId_permissionId: {
-          roleId: adminRole.id,
-          permissionId: permission.id,
+    if (isAccountantPerm) {
+      await prisma.rolePermission.upsert({
+        where: {
+          roleId_permissionId: {
+            roleId: roles["accountant"].id,
+            permissionId: p.id,
+          },
         },
-      },
-      update: {},
-      create: {
-        roleId: adminRole.id,
-        permissionId: permission.id,
-      },
-    });
+        update: {},
+        create: { roleId: roles["accountant"].id, permissionId: p.id },
+      });
+    }
   }
 
-  // Assign view permissions to user role
-  const viewPermissions = allPermissions.filter((p) =>
-    p.name.includes("_view")
-  );
-  for (const permission of viewPermissions) {
-    await prisma.rolePermission.upsert({
-      where: {
-        roleId_permissionId: {
-          roleId: userRole.id,
-          permissionId: permission.id,
-        },
-      },
-      update: {},
-      create: {
-        roleId: userRole.id,
-        permissionId: permission.id,
-      },
-    });
-  }
+  // 4. SEED USERS (Idempotent: Cek email)
+  const salt = 12;
+  console.log("👤 Sinkronisasi Master Users...");
 
-  // Create superadmin user
-  console.log("Creating superadmin user...");
-  const hashedPassword = await bcrypt.hash("admin123", 12);
-  const superAdmin = await prisma.user.upsert({
-    where: { email: "admin@example.com" },
-    update: {},
-    create: {
-      email: "admin@example.com",
+  const users = [
+    {
+      email: "superadmin@example.com",
       username: "superadmin",
-      password: hashedPassword,
+      password: "super123",
       isSuperAdmin: true,
-      profile: {
-        create: {
-          firstName: "Super",
-          lastName: "Admin",
-        },
-      },
-    },
-  });
-
-  // Create sample business
-  console.log("Creating sample business...");
-  const sampleBusiness = await prisma.business.upsert({
-    where: { code: "DEMO001" },
-    update: {},
-    create: {
-      code: "DEMO001",
-      name: "Demo Business",
-      description: "Sample business for demonstration",
-      address: "123 Demo Street",
-      phone: "+1234567890",
-      email: "demo@business.com",
-    },
-  });
-
-  // Create demo user
-  console.log("Creating demo user...");
-  const demoUserPassword = await bcrypt.hash("demo123", 12);
-  const demoUser = await prisma.user.upsert({
-    where: { email: "demo@example.com" },
-    update: {},
-    create: {
-      email: "demo@example.com",
-      username: "demouser",
-      password: demoUserPassword,
-      profile: {
-        create: {
-          firstName: "Demo",
-          lastName: "User",
-        },
-      },
-    },
-  });
-
-  // Assign demo user to sample business with manager role
-  await prisma.businessUser.upsert({
-    where: {
-      businessId_userId: {
-        businessId: sampleBusiness.id,
-        userId: demoUser.id,
-      },
-    },
-    update: {},
-    create: {
-      businessId: sampleBusiness.id,
-      userId: demoUser.id,
-      roleId: managerRole.id,
-    },
-  });
-
-  // Create sample accounts for the business
-  console.log("Creating sample accounts...");
-  const accounts = [
-    { code: "1000", name: "Cash", type: "ASSET", category: "Current Assets" },
-    {
-      code: "1100",
-      name: "Accounts Receivable",
-      type: "ASSET",
-      category: "Current Assets",
+      firstName: "Super",
+      lastName: "Admin",
+      role: "super_admin",
     },
     {
-      code: "2000",
-      name: "Accounts Payable",
-      type: "LIABILITY",
-      category: "Current Liabilities",
+      email: "admin@example.com",
+      username: "owner_bisnis",
+      password: "owner123",
+      isSuperAdmin: false,
+      firstName: "Owner",
+      lastName: "Bisnis",
+      role: "admin",
     },
     {
-      code: "3000",
-      name: "Owner's Equity",
-      type: "EQUITY",
-      category: "Equity",
-    },
-    {
-      code: "4000",
-      name: "Sales Revenue",
-      type: "REVENUE",
-      category: "Revenue",
-    },
-    {
-      code: "5000",
-      name: "Cost of Goods Sold",
-      type: "EXPENSE",
-      category: "Cost of Sales",
-    },
-    {
-      code: "6000",
-      name: "Operating Expenses",
-      type: "EXPENSE",
-      category: "Operating Expenses",
+      email: "user@example.com",
+      username: "akuntan_staff",
+      password: "user123",
+      isSuperAdmin: false,
+      firstName: "Staff",
+      lastName: "Akuntan",
+      role: "accountant",
     },
   ];
 
-  for (const account of accounts) {
-    await prisma.account.upsert({
+  const createdUsers = {};
+
+  for (const u of users) {
+    const user = await prisma.user.upsert({
+      where: { email: u.email },
+      update: { isSuperAdmin: u.isSuperAdmin },
+      create: {
+        email: u.email,
+        username: u.username,
+        password: await bcrypt.hash(u.password, salt),
+        isSuperAdmin: u.isSuperAdmin,
+        profile: { create: { firstName: u.firstName, lastName: u.lastName } },
+      },
+    });
+    createdUsers[u.email] = user;
+
+    // 5. SEED USER_ROLES (Global)
+    await prisma.userRole.upsert({
       where: {
-        businessId_code: {
-          businessId: sampleBusiness.id,
-          code: account.code,
-        },
+        userId_roleId: { userId: user.id, roleId: roles[u.role].id },
       },
       update: {},
-      create: {
-        businessId: sampleBusiness.id,
-        ...account,
-      },
+      create: { userId: user.id, roleId: roles[u.role].id },
     });
   }
 
-  // Create sample customer
-  console.log("Creating sample customer...");
-  await prisma.customer.upsert({
+  // 6. SEED BUSINESS & LINKING (Idempotent)
+  console.log("🏢 Sinkronisasi Bisnis Demo...");
+  const biz = await prisma.business.upsert({
+    where: { code: "BIZ-01" },
+    update: { name: "PT Multi Bisnis Jaya" },
+    create: { code: "BIZ-01", name: "PT Multi Bisnis Jaya" },
+  });
+
+  // Hubungkan Owner ke Bisnis
+  await prisma.businessUser.upsert({
     where: {
-      businessId_code: {
-        businessId: sampleBusiness.id,
-        code: "CUST001",
+      businessId_userId: {
+        businessId: biz.id,
+        userId: createdUsers["admin@example.com"].id,
       },
     },
     update: {},
     create: {
-      businessId: sampleBusiness.id,
-      code: "CUST001",
-      name: "Sample Customer",
-      address: "456 Customer Street",
-      phone: "+0987654321",
+      businessId: biz.id,
+      userId: createdUsers["admin@example.com"].id,
+      roleId: roles["admin"].id,
     },
   });
 
-  console.log("✅ Database seeded successfully!");
-  console.log("👤 SuperAdmin: admin@example.com / admin123");
-  console.log("👤 Demo User: demo@example.com / demo123");
-  console.log("🏢 Demo Business: DEMO001 (Demo Business)");
+  // Hubungkan Accountant ke Bisnis
+  await prisma.businessUser.upsert({
+    where: {
+      businessId_userId: {
+        businessId: biz.id,
+        userId: createdUsers["user@example.com"].id,
+      },
+    },
+    update: {},
+    create: {
+      businessId: biz.id,
+      userId: createdUsers["user@example.com"].id,
+      roleId: roles["accountant"].id,
+    },
+  });
+
+  console.log("✅ Seeding Berhasil & Sinkron!");
 }
 
 main()
   .catch((e) => {
-    console.error("❌ Seeding failed:", e);
+    console.error("❌ Seeding Gagal:", e);
     process.exit(1);
   })
   .finally(async () => {

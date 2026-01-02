@@ -1,59 +1,60 @@
-// controllers/authController.js
 const AuthService = require("../services/authService");
-const {
-  registerSchema,
-  loginSchema,
-  joinBusinessSchema,
-  changePasswordSchema,
-  forgotPasswordSchema,
-  resetPasswordSchema,
-} = require("../validators/authValidator");
 
 class AuthController {
   static async register(req, res) {
     try {
-      const { error } = registerSchema.validate(req.body);
-      if (error) {
-        return res.status(400).json({ message: error.details[0].message });
-      }
-
+      // Validasi manual dihapus karena sudah ditangani middleware di routes
       const user = await AuthService.register(req.body);
 
       res.status(201).json({
-        message: "User registered successfully.",
+        success: true,
+        message: "Business owner account registered successfully.",
         user,
       });
     } catch (error) {
-      res.status(400).json({ message: error.message });
+      res.status(400).json({ success: false, message: error.message });
     }
   }
 
   static async login(req, res) {
     try {
-      const { error } = loginSchema.validate(req.body);
-      if (error) {
-        return res.status(400).json({ message: error.details[0].message });
-      }
-
       const { email, password } = req.body;
       const result = await AuthService.login(email, password);
 
       res.json({
+        success: true,
         message: "Login successful",
         ...result,
       });
     } catch (error) {
-      res.status(400).json({ message: error.message });
+      res.status(400).json({ success: false, message: error.message });
+    }
+  }
+
+  static async inviteStaff(req, res) {
+    try {
+      const businessId = req.headers["x-business-id"];
+      if (!businessId) {
+        return res.status(400).json({
+          success: false,
+          message: "Header x-business-id wajib diisi",
+        });
+      }
+
+      const user = await AuthService.inviteStaff(businessId, req.body);
+
+      res.status(201).json({
+        success: true,
+        message: "Staff berhasil didaftarkan ke bisnis Anda",
+        data: user,
+      });
+    } catch (error) {
+      res.status(400).json({ success: false, message: error.message });
     }
   }
 
   static async joinBusiness(req, res) {
     try {
-      const { error } = joinBusinessSchema.validate(req.body);
-      if (error) {
-        return res.status(400).json({ message: error.details[0].message });
-      }
-
       const { businessCode, inviteCode } = req.body;
       const userId = req.user.id;
 
@@ -74,11 +75,6 @@ class AuthController {
 
   static async changePassword(req, res) {
     try {
-      const { error } = changePasswordSchema.validate(req.body);
-      if (error) {
-        return res.status(400).json({ message: error.details[0].message });
-      }
-
       const { currentPassword, newPassword } = req.body;
       const userId = req.user.id;
 
@@ -96,11 +92,6 @@ class AuthController {
 
   static async forgotPassword(req, res) {
     try {
-      const { error } = forgotPasswordSchema.validate(req.body);
-      if (error) {
-        return res.status(400).json({ message: error.details[0].message });
-      }
-
       const { email } = req.body;
       const result = await AuthService.forgotPassword(email);
 
@@ -112,11 +103,6 @@ class AuthController {
 
   static async resetPassword(req, res) {
     try {
-      const { error } = resetPasswordSchema.validate(req.body);
-      if (error) {
-        return res.status(400).json({ message: error.details[0].message });
-      }
-
       const { token, password } = req.body;
       const result = await AuthService.resetPassword(token, password);
 
@@ -185,8 +171,6 @@ class AuthController {
 
   static async logout(req, res) {
     try {
-      // In a real application, you might want to blacklist the token
-      // or store it in a database to prevent reuse
       res.json({ message: "Logged out successfully" });
     } catch (error) {
       res.status(500).json({ message: error.message });
