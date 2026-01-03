@@ -1,8 +1,8 @@
 const Joi = require("joi");
 
 const journalEntrySchema = Joi.object({
-  debitAccountId: Joi.string().guid({ version: "uuidv4" }).allow(null, ""),
-  creditAccountId: Joi.string().guid({ version: "uuidv4" }).allow(null, ""),
+  debitAccountId: Joi.string().allow(null, ""),
+  creditAccountId: Joi.string().allow(null, ""),
   description: Joi.string().max(255).allow(null, ""),
   debitAmount: Joi.number().min(0).default(0),
   creditAmount: Joi.number().min(0).default(0),

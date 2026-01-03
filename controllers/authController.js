@@ -9,7 +9,7 @@ class AuthController {
       res.status(201).json({
         success: true,
         message: "Business owner account registered successfully.",
-        user,
+        data: user,
       });
     } catch (error) {
       res.status(400).json({ success: false, message: error.message });
