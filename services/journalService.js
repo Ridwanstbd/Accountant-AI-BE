@@ -289,19 +289,39 @@ class JournalService {
       // Update saldo akun
       for (const entry of journal.entries) {
         if (entry.debitAccountId && entry.debitAmount > 0) {
+          const account = await prisma.account.findUnique({
+            where: { id: entry.debitAccountId },
+          });
+
+          // Cek tipe akun: Aset & Beban bertambah di Debit. Selain itu (Modal, Liabilitas, Pendapatan) berkurang di Debit.
+          const isNormalDebit = ["ASSET", "EXPENSE"].includes(account.type);
+
           await prisma.account.update({
             where: { id: entry.debitAccountId },
             data: {
-              balance: { increment: entry.debitAmount },
+              balance: isNormalDebit
+                ? { increment: entry.debitAmount }
+                : { decrement: entry.debitAmount },
             },
           });
         }
 
         if (entry.creditAccountId && entry.creditAmount > 0) {
+          const account = await prisma.account.findUnique({
+            where: { id: entry.creditAccountId },
+          });
+
+          // Cek tipe akun: Modal, Liabilitas, Pendapatan bertambah di Kredit.
+          const isNormalCredit = ["LIABILITY", "EQUITY", "REVENUE"].includes(
+            account.type
+          );
+
           await prisma.account.update({
             where: { id: entry.creditAccountId },
             data: {
-              balance: { decrement: entry.creditAmount },
+              balance: isNormalCredit
+                ? { increment: entry.creditAmount }
+                : { decrement: entry.creditAmount },
             },
           });
         }

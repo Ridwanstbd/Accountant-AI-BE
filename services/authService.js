@@ -182,58 +182,73 @@ class AuthService {
     });
   }
 
-  static async joinBusiness(userId, businessCode, inviteCode = null) {
-    const business = await prisma.business.findUnique({
-      where: { code: businessCode },
-    });
-
-    if (!business) {
-      throw new Error("Business not found");
-    }
-
-    if (!business.isActive) {
-      throw new Error("Business id not active");
-    }
-
-    const existingBusinessUser = await prisma.businessUser.findUnique({
-      where: {
-        businessId_userId: {
-          businessId: business.id,
-          userId,
-        },
-      },
-    });
-
-    if (existingBusinessUser) {
-      throw new Error("User already joined this business");
-    }
-
-    const defaultRole = await prisma.role.findFirst({
-      where: { name: "USER" },
-    });
-
-    if (!defaultRole) {
-      throw new Error("Default role not found");
-    }
-
-    const businessUser = await prisma.businessUser.create({
-      data: {
-        businessId: business.id,
-        userId,
-        roleId: defaultRole.id,
-      },
+  static async getMe(userId) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
       include: {
-        business: true,
-        user: {
+        profile: true,
+        userRoles: {
           include: {
-            profile: true,
+            role: {
+              include: {
+                permissions: {
+                  include: {
+                    permission: true,
+                  },
+                },
+              },
+            },
           },
         },
-        role: true,
+        businessUsers: {
+          where: { isActive: true },
+          include: {
+            business: true,
+            role: {
+              include: {
+                permissions: {
+                  include: {
+                    permission: true,
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     });
 
-    return businessUser;
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    if (!user.isActive) {
+      throw new Error("Account is deactivated");
+    }
+
+    const permissions = this.getUserPermissions(user);
+    const businessPermissions = this.getBusinessPermissions(user);
+
+    return {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      name: `${user.profile.firstName} ${user.profile.lastName}`, // Untuk keperluan display di Header
+      isSuperAdmin: user.isSuperAdmin,
+      isActive: user.isActive,
+      profile: user.profile,
+      globalRoles: user.userRoles.map((ur) => ur.role.name),
+      businesses: user.businessUsers.map((bu) => ({
+        id: bu.business.id,
+        name: bu.business.name,
+        code: bu.business.code,
+        role: bu.role.name,
+        isActive: bu.isActive,
+        joinedAt: bu.joinedAt,
+      })),
+      permissions,
+      businessPermissions,
+    };
   }
 
   static async forgotPassword(email) {

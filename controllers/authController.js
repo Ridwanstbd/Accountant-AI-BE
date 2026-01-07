@@ -3,7 +3,6 @@ const AuthService = require("../services/authService");
 class AuthController {
   static async register(req, res) {
     try {
-      // Validasi manual dihapus karena sudah ditangani middleware di routes
       const user = await AuthService.register(req.body);
 
       res.status(201).json({
@@ -53,23 +52,26 @@ class AuthController {
     }
   }
 
-  static async joinBusiness(req, res) {
+  static async getMe(req, res) {
     try {
-      const { businessCode, inviteCode } = req.body;
       const userId = req.user.id;
-
-      const businessUser = await AuthService.joinBusiness(
-        userId,
-        businessCode,
-        inviteCode
-      );
+      const user = await AuthService.getMe(userId);
 
       res.json({
-        message: "Successfully joined business",
-        businessUser,
+        success: true,
+        message: "User data retrieved successfully",
+        data: user,
       });
     } catch (error) {
-      res.status(400).json({ message: error.message });
+      const statusCode =
+        error.message === "User not found" ||
+        error.message === "Account is deactivated"
+          ? 401
+          : 400;
+      res.status(statusCode).json({
+        success: false,
+        message: error.message,
+      });
     }
   }
 

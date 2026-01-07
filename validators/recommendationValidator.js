@@ -12,7 +12,7 @@ const generateCustomSchema = Joi.object({
   year: Joi.number().integer().min(2020).max(2100).optional(),
   month: Joi.number().integer().min(1).max(12).optional(),
   includeFinancialData: Joi.boolean().default(false),
-  userId: Joi.string().guid({ version: "uuidv4" }).optional(),
+  userId: Joi.string().optional(),
   model: Joi.string().optional(),
   temperature: Joi.number().min(0).max(2).optional(),
   maxTokens: Joi.number().integer().min(100).max(4000).optional(),
@@ -27,7 +27,7 @@ const recommendationQuerySchema = Joi.object({
     .valid("CostSaving", "RevenueOptimization", "CashFlow", "General")
     .optional(),
   isCustom: Joi.boolean().optional(),
-  userId: Joi.string().guid({ version: "uuidv4" }).optional(),
+  userId: Joi.string().optional(),
   limit: Joi.number().integer().min(1).max(100).default(10),
   offset: Joi.number().integer().min(0).default(0),
   sortBy: Joi.string()
@@ -45,10 +45,7 @@ const updateRecommendationSchema = Joi.object({
 }).min(1);
 
 const bulkDeleteSchema = Joi.object({
-  ids: Joi.array()
-    .items(Joi.string().guid({ version: "uuidv4" }))
-    .min(1)
-    .required(),
+  ids: Joi.array().items(Joi.string()).min(1).required(),
 });
 
 module.exports = {

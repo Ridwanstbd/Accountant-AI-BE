@@ -4,7 +4,6 @@ const { verifyToken } = require("../middlewares/auth");
 const {
   inviteStaffSchema,
   changePasswordSchema,
-  joinBusinessSchema,
   resetPasswordSchema,
   loginSchema,
   registerSchema,
@@ -36,11 +35,7 @@ router.post("/refresh-token", AuthController.refreshToken);
 // Protected routes
 router.use(verifyToken);
 router.get("/profile", AuthController.getProfile);
-router.post(
-  "/join-business",
-  validate(joinBusinessSchema),
-  AuthController.joinBusiness
-);
+router.get("/me", AuthController.getMe);
 router.post(
   "/change-password",
   validate(changePasswordSchema),

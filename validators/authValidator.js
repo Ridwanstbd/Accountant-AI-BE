@@ -13,11 +13,6 @@ const loginSchema = Joi.object({
   password: Joi.string().required(),
 });
 
-const joinBusinessSchema = Joi.object({
-  businessCode: Joi.string().required(),
-  inviteCode: Joi.string().optional(),
-});
-
 const changePasswordSchema = Joi.object({
   currentPassword: Joi.string().required(),
   newPassword: Joi.string().min(6).required(),
@@ -44,7 +39,6 @@ const inviteStaffSchema = Joi.object({
 module.exports = {
   registerSchema,
   loginSchema,
-  joinBusinessSchema,
   changePasswordSchema,
   forgotPasswordSchema,
   resetPasswordSchema,

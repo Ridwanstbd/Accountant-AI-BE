@@ -36,13 +36,10 @@ const createJournalSchema = Joi.object({
 });
 
 const createSalesJournalSchema = Joi.object({
-  saleId: Joi.string().guid({ version: "uuidv4" }).required(),
-  cashAccountId: Joi.string().guid({ version: "uuidv4" }).required(),
-  salesAccountId: Joi.string().guid({ version: "uuidv4" }).required(),
-  taxAccountId: Joi.string()
-    .guid({ version: "uuidv4" })
-    .allow(null, "")
-    .optional(),
+  saleId: Joi.string().required(),
+  cashAccountId: Joi.string().required(),
+  salesAccountId: Joi.string().required(),
+  taxAccountId: Joi.string().allow(null, "").optional(),
 });
 
 const journalQuerySchema = Joi.object({

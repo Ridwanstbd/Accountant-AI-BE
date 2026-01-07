@@ -13,7 +13,7 @@ const saleItemSchema = Joi.object({
 });
 
 const createSaleSchema = Joi.object({
-  customerId: Joi.string().guid({ version: "uuidv4" }).required().messages({
+  customerId: Joi.string().required().messages({
     "any.required": "Customer ID wajib diisi",
   }),
   date: Joi.date().required(),
@@ -37,7 +37,7 @@ const salesQuerySchema = Joi.object({
   status: Joi.string()
     .valid("PENDING", "CONFIRMED", "COMPLETED", "CANCELLED")
     .optional(),
-  customerId: Joi.string().guid({ version: "uuidv4" }).optional(),
+  customerId: Joi.string().optional(),
   startDate: Joi.date().optional(),
   endDate: Joi.date().min(Joi.ref("startDate")).optional(),
 });
