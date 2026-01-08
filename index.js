@@ -46,7 +46,7 @@ app.get("/", (req, res) => {
 
 app.use(errorHandler);
 
-app.use("*", (req, res) => {
+app.all("*", (req, res) => {
   res.status(404).json({
     success: false,
     message: "Endpoint not found",
@@ -55,18 +55,6 @@ app.use("*", (req, res) => {
       health: "/api/health",
       swagger_json: "/swagger.json",
     },
-  });
-});
-
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({
-    success: false,
-    message: "Something went wrong!",
-    error:
-      process.env.NODE_ENV === "development"
-        ? err.message
-        : "Internal server error",
   });
 });
 
