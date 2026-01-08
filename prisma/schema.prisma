@@ -203,6 +203,8 @@ enum JournalType {
   GENERAL
   SALES
   PURCHASE
+  ADJUSTMENT
+  EXPENSE
   PAYMENT
 }
 

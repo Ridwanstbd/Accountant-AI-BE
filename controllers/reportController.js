@@ -1,11 +1,11 @@
 const reportService = require("../services/reportService");
 
 class ReportController {
-  getBid(req) {
+  getBid = (req) => {
     return req.headers["x-business-id"];
-  }
+  };
 
-  async getProfitAndLoss(req, res, next) {
+  getProfitAndLoss = async (req, res, next) => {
     try {
       const { startDate, endDate } = req.query;
       const data = await reportService.getProfitAndLoss(
@@ -17,18 +17,18 @@ class ReportController {
     } catch (error) {
       next(error);
     }
-  }
+  };
 
-  async getBalanceSheet(req, res, next) {
+  getBalanceSheet = async (req, res, next) => {
     try {
       const data = await reportService.getBalanceSheet(this.getBid(req));
       res.json({ success: true, data });
     } catch (error) {
       next(error);
     }
-  }
+  };
 
-  async getLedger(req, res, next) {
+  getLedger = async (req, res, next) => {
     try {
       const data = await reportService.getGeneralLedger(
         this.getBid(req),
@@ -38,18 +38,18 @@ class ReportController {
     } catch (error) {
       next(error);
     }
-  }
+  };
 
-  async getRatios(req, res, next) {
+  getRatios = async (req, res, next) => {
     try {
       const data = await reportService.getFinancialRatios(this.getBid(req));
       res.json({ success: true, data });
     } catch (error) {
       next(error);
     }
-  }
+  };
 
-  async exportProfitLoss(req, res, next) {
+  exportProfitLoss = async (req, res, next) => {
     try {
       const { startDate, endDate, format = "xlsx" } = req.query;
       const businessId = this.getBid(req);
@@ -84,7 +84,7 @@ class ReportController {
     } catch (error) {
       next(error);
     }
-  }
+  };
 }
 
 module.exports = new ReportController();

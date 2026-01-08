@@ -13,7 +13,7 @@ const createJournalSchema = Joi.object({
     "any.required": "Tanggal jurnal wajib diisi",
   }),
   type: Joi.string()
-    .valid("GENERAL", "SALES", "PURCHASE", "ADJUSTMENT")
+    .valid("GENERAL", "SALES", "PURCHASE", "EXPENSE", "ADJUSTMENT")
     .required(),
   reference: Joi.string().max(100).allow(null, ""),
   entries: Joi.array().items(journalEntrySchema).min(2).required().messages({
@@ -44,7 +44,7 @@ const createSalesJournalSchema = Joi.object({
 
 const journalQuerySchema = Joi.object({
   type: Joi.string()
-    .valid("GENERAL", "SALES", "PURCHASE", "ADJUSTMENT")
+    .valid("GENERAL", "SALES", "PURCHASE", "EXPENSE", "ADJUSTMENT")
     .optional(),
   status: Joi.string().valid("DRAFT", "POSTED").optional(),
   startDate: Joi.date().optional(),

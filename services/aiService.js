@@ -234,7 +234,7 @@ class AIService {
     try {
       return [
         {
-          id: "deepseek/deepseek-r1:free",
+          id: "nex-agi/deepseek-v3.1-nex-n1:free",
           name: "DeepSeek R1 (Free)",
           description: "Free tier model for general use",
         },

@@ -60,13 +60,27 @@ class JournalService {
     if (!validateJournalBalance(entries)) {
       throw new Error("Total debit dan kredit harus seimbang");
     }
+    const getPrefix = (t) => {
+      switch (t) {
+        case "GENERAL":
+          return "JU";
+        case "SALES":
+          return "JP";
+        case "EXPENSE":
+          return "JK"; // Jurnal Kas Keluar / Beban
+        case "PURCHASE":
+          return "JB"; // Jurnal Pembelian
+        default:
+          return "J";
+      }
+    };
+
+    const prefix = getPrefix(type);
 
     const lastJournal = await prisma.journal.findFirst({
       where: {
         businessId,
-        journalNo: {
-          startsWith: type === "GENERAL" ? "JU" : type === "SALES" ? "JP" : "J",
-        },
+        journalNo: { startsWith: prefix },
       },
       orderBy: { journalNo: "desc" },
     });

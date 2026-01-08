@@ -1,7 +1,8 @@
 const ResponseHelpers = require("../utils/responseHelpers");
 
-const errorHandler = (error, req, res, next) => {
-  console.log("Error:", error);
+const errorHandler = (err, req, res, next) => {
+  console.log("Error logic triggered:", err.message);
+
   if (err.code === "P2002") {
     return ResponseHelpers.error(
       res,
@@ -23,17 +24,14 @@ const errorHandler = (error, req, res, next) => {
     return ResponseHelpers.unauthorized(res, "Token expired");
   }
 
-  // Validation errors
-  if (err.name === "ValidationError") {
-    return ResponseHelpers.validationError(res, err.details);
+  if (err.name === "ValidationError" || err.isJoi) {
+    return ResponseHelpers.validationError(res, err.details || []);
   }
 
-  // Custom application errors
   if (err.statusCode) {
     return ResponseHelpers.error(res, err.message, err.statusCode);
   }
 
-  // Default server error
   const message =
     process.env.NODE_ENV === "development"
       ? err.message
@@ -41,4 +39,5 @@ const errorHandler = (error, req, res, next) => {
 
   return ResponseHelpers.error(res, message, 500);
 };
+
 module.exports = errorHandler;

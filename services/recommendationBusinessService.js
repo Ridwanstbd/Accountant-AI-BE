@@ -40,10 +40,10 @@ class RecommendationBusinessService {
         month
       );
 
-      // 3. Validate if there's enough data to generate recommendation
-      if (!this.hasEnoughDataForRecommendation(financialData)) {
-        throw new Error("Data keuangan tidak cukup untuk membuat rekomendasi");
-      }
+      // // 3. Validate if there's enough data to generate recommendation
+      // if (!this.hasEnoughDataForRecommendation(financialData)) {
+      //   throw new Error("Data keuangan tidak cukup untuk membuat rekomendasi");
+      // }
 
       // 4. Generate AI recommendation
       const aiResult = await this.generateAIRecommendation(
@@ -420,7 +420,7 @@ class RecommendationBusinessService {
       processed.totalRevenue > 0 ||
       processed.totalExpense > 0 ||
       (processed.transactionSummaries &&
-        processed.transactionSummaries.length >= 3)
+        processed.transactionSummaries.length >= 1)
     );
   }
 
