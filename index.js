@@ -10,8 +10,9 @@ const errorHandler = require("./middlewares/errorHandler");
 
 dotenv.config();
 
-const app = express();
 const PORT = process.env.PORT || 3000;
+const app = express();
+app.set("trust proxy", 1);
 
 app.use(helmet());
 app.use(cors());
@@ -19,6 +20,8 @@ app.use(cors());
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 1000,
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 app.use(limiter);
 
