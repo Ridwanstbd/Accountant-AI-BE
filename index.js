@@ -12,7 +12,7 @@ dotenv.config();
 
 const PORT = process.env.PORT || 3000;
 const app = express();
-app.set("trust proxy", 1);
+app.set("trust proxy", true);
 
 app.use(helmet());
 app.use(cors());
@@ -22,8 +22,12 @@ const limiter = rateLimit({
   max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req) => {
+    return req.ip || "global";
+  },
 });
-app.use(limiter);
+
+app.use("/api", limiter);
 
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
