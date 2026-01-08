@@ -4,8 +4,8 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js",
-    "db:migrate": "prisma migrate dev",
+    "postinstall": "prisma generate",
+    "migrate": "prisma migrate deploy",
     "db:generate": "prisma generate",
     "swagger:validate": "swagger-codegen validate -i swagger.yaml",
     "docs:serve": "swagger-ui-serve swagger.yaml",
