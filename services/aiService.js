@@ -7,7 +7,8 @@ class AIService {
     this.siteUrl = process.env.FRONTEND_URL || "http://localhost:3000";
     this.siteName = process.env.SITE_NAME || "AI Recommendation System";
 
-    this.defaultModel = process.env.OPENROUTER_MODEL;
+    this.defaultModel =
+      process.env.OPENROUTER_MODEL || "google/gemini-3-flash-preview";
     this.defaultTemperature = 0.7;
     this.defaultMaxTokens = 1000;
   }

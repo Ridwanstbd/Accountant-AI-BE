@@ -95,7 +95,7 @@ class RecommendationBusinessService {
           month
         );
         financialContext = financialData.summary;
-        finalPrompt = `${financialContext}\n\nBerdasarkan data keuangan di atas, ${prompt}`;
+        finalPrompt = `Based on the financial data above: ${prompt}. Please answer in Indonesian language.`;
       }
 
       const aiRecommendationText = await this.aiService.generateRecommendation(
