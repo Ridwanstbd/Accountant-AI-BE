@@ -6,9 +6,6 @@
 
 generator client {
   provider      = "prisma-client-js"
-  engineType    = "library"
-  // Tambahkan target biner untuk Linux dan Windows
-  binaryTargets = ["native", "debian-openssl-1.0.x", "debian-openssl-1.1.x", "rhel-openssl-1.0.x", "rhel-openssl-1.1.x"]
 }
 
 datasource db {
