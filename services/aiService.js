@@ -7,8 +7,7 @@ class AIService {
     this.siteUrl = process.env.FRONTEND_URL || "http://localhost:3000";
     this.siteName = process.env.SITE_NAME || "AI Recommendation System";
 
-    this.defaultModel =
-      process.env.OPENROUTER_MODEL || "deepseek/deepseek-r1:free";
+    this.defaultModel = process.env.OPENROUTER_MODEL;
     this.defaultTemperature = 0.7;
     this.defaultMaxTokens = 1000;
   }
@@ -32,10 +31,10 @@ class AIService {
       } else {
         messages.push({
           role: "system",
-          content: `Anda adalah seorang konsultan keuangan AI yang ahli dalam memberikan rekomendasi bisnis. 
-                   Berikan rekomendasi yang spesifik, praktis, dan dapat ditindaklanjuti berdasarkan data keuangan yang diberikan.
-                   Fokuskan pada penghematan biaya, optimalisasi pendapatan, dan manajemen arus kas.
-                   Jawab dalam bahasa Indonesia dengan format yang terstruktur dan mudah dipahami.`,
+          content: `You are an expert AI financial consultant specialized in providing business recommendations. 
+                    Provide specific, practical, and actionable recommendations based on the financial data provided.
+                    Focus on cost savings, revenue optimization, and cash flow management.
+                    Please answer in Indonesian language with a structured and easy-to-understand format.`,
         });
       }
 
@@ -74,15 +73,13 @@ class AIService {
       return generatedText;
     } catch (error) {
       console.error("OpenRouter AI Service Error:", error);
-
+      // ... (error handling tetap sama)
       if (error.response) {
         const errorMessage =
           error.response.data?.error?.message || error.response.statusText;
         throw new Error(
           `OpenRouter API error: ${error.response.status} - ${errorMessage}`
         );
-      } else if (error.request) {
-        throw new Error(`Network error: Unable to reach OpenRouter API`);
       } else {
         throw new Error(
           `Failed to generate AI recommendation: ${error.message}`
@@ -103,7 +100,7 @@ class AIService {
 
       let userPrompt = prompt;
       if (includeFinancialContext && context.financialData) {
-        userPrompt = `${context.financialData}\n\nBerdasarkan data keuangan di atas: ${prompt}`;
+        userPrompt = `Based on the following financial data: \n${context.financialData}\n\nQuestion: ${prompt}\n\nPlease answer in Indonesian language.`;
       }
 
       return await this.generateRecommendation(userPrompt, {
@@ -117,67 +114,33 @@ class AIService {
     }
   }
 
-  async generateRecommendationVariations(
-    financialSummary,
-    variations = 3,
-    options = {}
-  ) {
-    try {
-      const promises = [];
-
-      for (let i = 0; i < variations; i++) {
-        const variationOptions = {
-          ...options,
-          temperature: 0.5 + i * 0.2,
-          systemPrompt: this.buildVariationSystemPrompt(i),
-        };
-
-        promises.push(
-          this.generateRecommendation(financialSummary, variationOptions)
-        );
-      }
-
-      const results = await Promise.all(promises);
-
-      return results.map((text, index) => ({
-        variation: index + 1,
-        text: text,
-        approach: this.getVariationApproach(index),
-      }));
-    } catch (error) {
-      throw new Error(
-        `Failed to generate recommendation variations: ${error.message}`
-      );
-    }
-  }
-
   async analyzeFinancialData(financialData) {
     try {
       const analysisPrompt = `
-        Analisis data keuangan berikut dan berikan rekomendasi tipe analisis yang paling sesuai:
+        Analyze the following financial data and provide the most suitable analysis type recommendation:
         
-        Total Pendapatan: Rp${
+        Total Revenue: Rp${
           financialData.totalRevenue?.toLocaleString("id-ID") || 0
         }
-        Total Beban: Rp${
+        Total Expense: Rp${
           financialData.totalExpense?.toLocaleString("id-ID") || 0
         }
-        Laba/Rugi: Rp${
+        Profit/Loss: Rp${
           (
             financialData.totalRevenue - financialData.totalExpense
           )?.toLocaleString("id-ID") || 0
         }
-        Jumlah Transaksi: ${financialData.transactionCount || 0}
+        Transaction Count: ${financialData.transactionCount || 0}
         
-        Berdasarkan data ini, kategori rekomendasi apa yang paling dibutuhkan?
-        Pilih dari: CostSaving, RevenueOptimization, CashFlow, atau General
+        Based on this data, which recommendation category is most needed?
+        Choose from: CostSaving, RevenueOptimization, CashFlow, or General.
         
-        Berikan jawaban dalam format JSON:
+        Please provide the response in JSON format. Use Indonesian language for the 'reasoning' and 'keyInsights' values:
         {
-          "recommendedType": "kategori_yang_dipilih",
-          "reasoning": "alasan_pemilihan",
+          "recommendedType": "chosen_category",
+          "reasoning": "explanation_in_indonesian",
           "priority": "high/medium/low",
-          "keyInsights": ["insight1", "insight2"]
+          "keyInsights": ["insight1_in_indonesian", "insight2_in_indonesian"]
         }
       `;
 
@@ -207,7 +170,7 @@ class AIService {
       const model = testModel || this.defaultModel;
 
       const testResponse = await this.generateRecommendation(
-        "Test koneksi API. Berikan respon singkat bahwa sistem berfungsi dengan baik.",
+        "API connection test. Please provide a very brief response in Indonesian confirming that the system is working properly.",
         {
           model,
           temperature: 0.1,
@@ -230,53 +193,20 @@ class AIService {
     }
   }
 
-  async getAvailableModels() {
-    try {
-      return [
-        {
-          id: "nex-agi/deepseek-v3.1-nex-n1:free",
-          name: "DeepSeek R1 (Free)",
-          description: "Free tier model for general use",
-        },
-      ];
-    } catch (error) {
-      throw new Error(`Failed to get available models: ${error.message}`);
-    }
-  }
-
-  isConfigured() {
-    return !!(this.apiKey && this.baseUrl);
-  }
-
-  getConfig() {
-    return {
-      configured: this.isConfigured(),
-      model: this.defaultModel,
-      baseUrl: this.baseUrl,
-      siteUrl: this.siteUrl,
-      siteName: this.siteName,
-      hasApiKey: !!this.apiKey,
-    };
-  }
-
+  // Helper Methods
   buildSystemPrompt(recommendationType, language = "id") {
     const prompts = {
-      CostSaving: `Anda adalah konsultan efisiensi biaya yang ahli dalam mengidentifikasi peluang penghematan.
-                     Fokuskan rekomendasi pada pengurangan biaya operasional, optimasi proses, dan eliminasi pembororan.`,
-
-      RevenueOptimization: `Anda adalah konsultan pertumbuhan bisnis yang ahli dalam strategi peningkatan pendapatan.
-                              Fokuskan rekomendasi pada peningkatan penjualan, ekspansi pasar, dan optimasi pricing.`,
-
-      CashFlow: `Anda adalah konsultan manajemen keuangan yang ahli dalam pengelolaan arus kas.
-                   Fokuskan rekomendasi pada pengelolaan piutang, hutang, dan likuiditas perusahaan.`,
-
-      General: `Anda adalah konsultan keuangan umum yang memberikan rekomendasi holistik untuk kesehatan finansial bisnis.`,
+      CostSaving: `You are a cost-efficiency consultant expert in identifying saving opportunities. Focus on reducing operational costs, process optimization, and eliminating waste.`,
+      RevenueOptimization: `You are a business growth consultant expert in revenue increase strategies. Focus on sales growth, market expansion, and pricing optimization.`,
+      CashFlow: `You are a financial management consultant expert in cash flow handling. Focus on managing accounts receivable, accounts payable, and liquidity.`,
+      General: `You are a general financial consultant providing holistic recommendations for business financial health.`,
     };
 
     const basePrompt = prompts[recommendationType] || prompts["General"];
 
+    // Tetap memberikan instruksi bahasa Indonesia meskipun prompt sistemnya bahasa Inggris
     if (language === "id") {
-      return `${basePrompt} Berikan rekomendasi dalam bahasa Indonesia dengan format yang terstruktur dan mudah dipahami.`;
+      return `${basePrompt} Please answer in Indonesian language with a structured and easy-to-understand format.`;
     }
 
     return basePrompt;
@@ -284,24 +214,19 @@ class AIService {
 
   buildVariationSystemPrompt(variationIndex) {
     const approaches = [
-      "Fokus pada solusi jangka pendek yang dapat diimplementasikan segera",
-      "Fokus pada strategi jangka menengah dengan analisis mendalam",
-      "Fokus pada visi jangka panjang dengan pendekatan inovatif",
+      "Focus on short-term solutions that can be implemented immediately",
+      "Focus on medium-term strategies with in-depth analysis",
+      "Focus on long-term vision with innovative approaches",
     ];
 
-    return `Anda adalah konsultan keuangan. ${
+    return `You are a financial consultant. ${
       approaches[variationIndex] || approaches[0]
     }. 
-            Berikan rekomendasi dalam bahasa Indonesia dengan pendekatan yang berbeda dari rekomendasi sebelumnya.`;
+            Please answer in Indonesian language using a different perspective from previous recommendations.`;
   }
 
   getVariationApproach(index) {
-    const approaches = [
-      "Jangka Pendek - Solusi Cepat",
-      "Jangka Menengah - Analisis Mendalam",
-      "Jangka Panjang - Visi Inovatif",
-    ];
-
+    const approaches = ["Jangka Pendek", "Jangka Menengah", "Jangka Panjang"];
     return approaches[index] || "Pendekatan Umum";
   }
 }

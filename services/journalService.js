@@ -61,18 +61,15 @@ class JournalService {
       throw new Error("Total debit dan kredit harus seimbang");
     }
     const getPrefix = (t) => {
-      switch (t) {
-        case "GENERAL":
-          return "JU";
-        case "SALES":
-          return "JP";
-        case "EXPENSE":
-          return "JK";
-        case "PURCHASE":
-          return "JB";
-        default:
-          return "J";
-      }
+      const mapping = {
+        GENERAL: "JU",
+        SALES: "JP",
+        EXPENSE: "JK",
+        PURCHASE: "JB",
+        ADJUSTMENT: "JA",
+        PAYMENT: "PY",
+      };
+      return mapping[t] || "J";
     };
 
     const prefix = getPrefix(type);

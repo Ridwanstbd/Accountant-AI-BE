@@ -24,6 +24,12 @@ const generateJournalNumber = (type, lastJournalNo = null) => {
     case "PURCHASE":
       prefix = "JB";
       break;
+    case "ADJUSTMENT":
+      prefix = "JA";
+      break;
+    case "PAYMENT":
+      prefix = "PY";
+      break;
     default:
       prefix = "J";
   }
