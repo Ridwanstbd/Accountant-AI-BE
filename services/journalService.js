@@ -67,9 +67,9 @@ class JournalService {
         case "SALES":
           return "JP";
         case "EXPENSE":
-          return "JK"; // Jurnal Kas Keluar / Beban
+          return "JK";
         case "PURCHASE":
-          return "JB"; // Jurnal Pembelian
+          return "JB";
         default:
           return "J";
       }
@@ -347,22 +347,65 @@ class JournalService {
 
   async deleteJournal(businessId, id) {
     const journal = await prisma.journal.findFirst({
-      where: {
-        id,
-        businessId,
-      },
+      where: { id, businessId },
+      include: { entries: true },
     });
 
     if (!journal) {
       throw new Error("Journal tidak ditemukan atau tidak memiliki akses");
     }
 
-    if (journal.status === "POSTED") {
-      throw new Error("Journal yang sudah diposting tidak bisa dihapus");
-    }
+    return await prisma.$transaction(async (tx) => {
+      // 1. Jika status POSTED, lakukan REVERSAL saldo akun
+      if (journal.status === "POSTED") {
+        for (const entry of journal.entries) {
+          // --- Reversal Debit ---
+          if (entry.debitAccountId && entry.debitAmount > 0) {
+            const acc = await tx.account.findUnique({
+              where: { id: entry.debitAccountId },
+            });
+            const isNormalDebit = ["ASSET", "EXPENSE"].includes(acc.type);
 
-    return await prisma.journal.delete({
-      where: { id },
+            await tx.account.update({
+              where: { id: entry.debitAccountId },
+              data: {
+                balance: isNormalDebit
+                  ? { decrement: entry.debitAmount } // Kebalikan dari postJournal
+                  : { increment: entry.debitAmount },
+              },
+            });
+          }
+
+          // --- Reversal Credit ---
+          if (entry.creditAccountId && entry.creditAmount > 0) {
+            const acc = await tx.account.findUnique({
+              where: { id: entry.creditAccountId },
+            });
+            const isNormalCredit = ["LIABILITY", "EQUITY", "REVENUE"].includes(
+              acc.type
+            );
+
+            await tx.account.update({
+              where: { id: entry.creditAccountId },
+              data: {
+                balance: isNormalCredit
+                  ? { decrement: entry.creditAmount } // Kebalikan dari postJournal
+                  : { increment: entry.creditAmount },
+              },
+            });
+          }
+        }
+      }
+
+      // 2. Hapus Journal Entries terlebih dahulu (karena relasi FK)
+      await tx.journalEntry.deleteMany({
+        where: { journalId: id },
+      });
+
+      // 3. Hapus Journal Utama
+      return await tx.journal.delete({
+        where: { id },
+      });
     });
   }
 }

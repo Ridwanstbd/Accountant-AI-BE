@@ -10,7 +10,23 @@ const generateCode = (prefix, lastCode = null) => {
 };
 
 const generateJournalNumber = (type, lastJournalNo = null) => {
-  const prefix = type === "GENERAL" ? "JU" : type === "SALES" ? "JP" : "J";
+  let prefix = "J";
+  switch (type) {
+    case "GENERAL":
+      prefix = "JU";
+      break;
+    case "SALES":
+      prefix = "JP";
+      break;
+    case "EXPENSE":
+      prefix = "JK";
+      break;
+    case "PURCHASE":
+      prefix = "JB";
+      break;
+    default:
+      prefix = "J";
+  }
   const today = new Date();
   const year = today.getFullYear();
   const month = String(today.getMonth() + 1).padStart(2, "0");
