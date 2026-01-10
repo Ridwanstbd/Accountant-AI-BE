@@ -88,48 +88,60 @@ class RecommendationBusinessService {
       let finalPrompt = prompt;
       let financialContext = null;
 
-      if (includeFinancialData && year && month) {
+      const targetYear = year || new Date().getFullYear();
+      const targetMonth = month || new Date().getMonth() + 1;
+
+      if (includeFinancialData) {
         const financialData = await this.getFinancialDataForMonth(
           businessId,
-          year,
-          month
+          targetYear,
+          targetMonth
         );
         financialContext = financialData.summary;
-        finalPrompt = `Based on the financial data above: ${prompt}. Please answer in Indonesian language.`;
+        // PROMPT: Bahasa Inggris, INSTRUKSI: Bahasa Indonesia
+        finalPrompt = `Based on the following financial data: \n${financialContext}\n\nQuestion: ${prompt}. Please answer in Indonesian language.`;
       }
 
       const aiRecommendationText = await this.aiService.generateRecommendation(
         finalPrompt,
         aiOptions
       );
+
       const recommendationType =
         determineRecommendationType(aiRecommendationText);
 
-      // Save custom recommendation
       const savedRecommendation =
-        await this.prisma.monthlyAIRecommendation.create({
-          data: {
-            businessId,
-            year: year || new Date().getFullYear(),
-            month: month || new Date().getMonth() + 1,
+        await this.prisma.monthlyAIRecommendation.upsert({
+          where: {
+            business_year_month: {
+              businessId,
+              year: targetYear,
+              month: targetMonth,
+            },
+          },
+          update: {
             recommendationType,
             recommendationText: aiRecommendationText,
             isCustom: true,
             customPrompt: prompt,
             userId: userId,
-            metadata: {
-              includeFinancialData,
-              financialContext: financialContext ? "included" : "not_included",
-            },
+            updatedAt: new Date(),
+          },
+          create: {
+            businessId,
+            year: targetYear,
+            month: targetMonth,
+            recommendationType,
+            recommendationText: aiRecommendationText,
+            isCustom: true,
+            customPrompt: prompt,
+            userId: userId,
           },
         });
 
       return {
         recommendation: savedRecommendation,
         originalPrompt: prompt,
-        finalPrompt: includeFinancialData
-          ? "Financial data included"
-          : "No financial data",
         aiRawOutput: aiRecommendationText,
       };
     } catch (error) {
