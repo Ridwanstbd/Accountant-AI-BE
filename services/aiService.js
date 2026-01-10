@@ -89,25 +89,76 @@ class AIService {
     }
   }
 
-  async generateCustomRecommendation(prompt, context = {}, options = {}) {
+  async generateCustomRecommendation(businessId, params) {
+    const {
+      prompt,
+      year,
+      month,
+      includeFinancialData = false,
+      userId = null,
+      aiOptions = {},
+    } = params;
+
     try {
-      const {
-        includeFinancialContext = false,
-        recommendationType = "general",
-        language = "id",
-      } = context;
+      let finalPrompt = prompt;
+      let financialContext = null;
 
-      let systemPrompt = this.buildSystemPrompt(recommendationType, language);
+      const targetYear = year || new Date().getFullYear();
+      const targetMonth = month || new Date().getMonth() + 1;
 
-      let userPrompt = prompt;
-      if (includeFinancialContext && context.financialData) {
-        userPrompt = `Based on the following financial data: \n${context.financialData}\n\nQuestion: ${prompt}\n\nPlease answer in Indonesian language.`;
+      if (includeFinancialData) {
+        const financialData = await this.getFinancialDataForMonth(
+          businessId,
+          targetYear,
+          targetMonth
+        );
+        financialContext = financialData.summary;
+        // PROMPT: Bahasa Inggris, INSTRUKSI: Bahasa Indonesia
+        finalPrompt = `Based on the following financial data: \n${financialContext}\n\nQuestion: ${prompt}. Please answer in Indonesian language.`;
       }
 
-      return await this.generateRecommendation(userPrompt, {
-        ...options,
-        systemPrompt,
-      });
+      const aiRecommendationText = await this.aiService.generateRecommendation(
+        finalPrompt,
+        aiOptions
+      );
+
+      const recommendationType =
+        determineRecommendationType(aiRecommendationText);
+
+      const savedRecommendation =
+        await this.prisma.monthlyAIRecommendation.upsert({
+          where: {
+            business_year_month: {
+              businessId,
+              year: targetYear,
+              month: targetMonth,
+            },
+          },
+          update: {
+            recommendationType,
+            recommendationText: aiRecommendationText,
+            isCustom: true,
+            customPrompt: prompt,
+            userId: userId,
+            updatedAt: new Date(),
+          },
+          create: {
+            businessId,
+            year: targetYear,
+            month: targetMonth,
+            recommendationType,
+            recommendationText: aiRecommendationText,
+            isCustom: true,
+            customPrompt: prompt,
+            userId: userId,
+          },
+        });
+
+      return {
+        recommendation: savedRecommendation,
+        originalPrompt: prompt,
+        aiRawOutput: aiRecommendationText,
+      };
     } catch (error) {
       throw new Error(
         `Failed to generate custom recommendation: ${error.message}`
