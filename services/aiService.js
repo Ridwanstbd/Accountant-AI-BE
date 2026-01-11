@@ -117,52 +117,72 @@ class AIService {
 
   async analyzeFinancialData(financialData) {
     try {
+      const {
+        totalRevenue = 0,
+        totalExpense = 0,
+        netProfit = 0,
+        roi = 0,
+        bep = 0,
+        transactionCount = 0,
+      } = financialData;
+
+      // Prompt menggunakan Bahasa Inggris untuk instruksi yang lebih presisi
       const analysisPrompt = `
-        Analyze the following financial data and provide the most suitable analysis type recommendation:
+        As a professional financial consultant, analyze the following business metrics:
         
-        Total Revenue: Rp${
-          financialData.totalRevenue?.toLocaleString("id-ID") || 0
-        }
-        Total Expense: Rp${
-          financialData.totalExpense?.toLocaleString("id-ID") || 0
-        }
-        Profit/Loss: Rp${
-          (
-            financialData.totalRevenue - financialData.totalExpense
-          )?.toLocaleString("id-ID") || 0
-        }
-        Transaction Count: ${financialData.transactionCount || 0}
+        - Total Revenue: Rp${totalRevenue.toLocaleString("id-ID")}
+        - Total Expense: Rp${totalExpense.toLocaleString("id-ID")}
+        - Net Profit/Loss: Rp${netProfit.toLocaleString("id-ID")}
+        - ROI (Return on Investment): ${roi}%
+        - BEP (Break Even Point): Rp${bep.toLocaleString("id-ID")}
+        - Transaction Count: ${transactionCount}
         
-        Based on this data, which recommendation category is most needed?
-        Choose from: CostSaving, RevenueOptimization, CashFlow, or General.
+        Task:
+        1. Evaluate the business health based on the relationship between Net Profit, ROI, and BEP.
+        2. Categorize the most urgent recommendation type from these options: 
+           - CostSaving (if expenses are disproportionately high)
+           - RevenueOptimization (if revenue is stagnant or low profit margins)
+           - CashFlow (if ROI is low or liquidity is at risk)
+           - General (if the business is stable but needs routine maintenance)
         
-        Please provide the response in JSON format. Use Indonesian language for the 'reasoning' and 'keyInsights' values:
+        Constraint:
+        - You MUST return the response strictly in JSON format.
+        - You MUST write the values for "reasoning" and "keyInsights" in Indonesian language (Bahasa Indonesia).
+        
+        Required JSON Structure:
         {
           "recommendedType": "chosen_category",
           "reasoning": "explanation_in_indonesian",
           "priority": "high/medium/low",
-          "keyInsights": ["insight1_in_indonesian", "insight2_in_indonesian"]
+          "keyInsights": ["insight_1_in_indonesian", "insight_2_in_indonesian", "insight_3_in_indonesian"]
         }
       `;
 
       const response = await this.generateRecommendation(analysisPrompt, {
-        temperature: 0.3,
-        maxTokens: 500,
+        temperature: 0.2, // Temperature rendah agar output JSON lebih konsisten/stabil
+        maxTokens: 800,
       });
 
       try {
-        const analysis = JSON.parse(response);
+        // Membersihkan karakter non-JSON seperti backticks ```json ... ```
+        const cleanedResponse = response.replace(/```json|```/g, "").trim();
+        const analysis = JSON.parse(cleanedResponse);
+
         return analysis;
       } catch (parseError) {
+        console.error("Failed to parse AI JSON response:", parseError);
         return {
           recommendedType: "General",
-          reasoning: "Analisis otomatis gagal, menggunakan kategori umum",
+          reasoning:
+            "Gagal memproses analisis otomatis secara teknis, namun data Anda tetap aman.",
           priority: "medium",
-          keyInsights: ["Diperlukan analisis manual lebih lanjut"],
+          keyInsights: [
+            "Silakan periksa laporan laba rugi secara manual untuk sementara waktu.",
+          ],
         };
       }
     } catch (error) {
-      throw new Error(`Failed to analyze financial data: ${error.message}`);
+      throw new Error(`AI Analysis Error: ${error.message}`);
     }
   }
 

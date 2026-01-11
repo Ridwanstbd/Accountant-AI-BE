@@ -4,47 +4,39 @@ const PDFDocument = require("pdfkit-table");
 const { prisma } = require("../models");
 
 class ReportService {
-  // 1. LAPORAN BUKU BESAR (General Ledger)
   async getGeneralLedger(businessId, filters) {
     const { startDate, endDate, accountId } = filters;
-    const where = { journal: { businessId } };
 
-    if (accountId) where.debitAccountId = accountId; // Atau creditAccountId (perlu logika OR)
-    if (startDate || endDate) {
-      where.journal.date = {
-        ...(startDate && { gte: new Date(startDate) }),
-        ...(endDate && { lte: new Date(endDate) }),
-      };
-    }
+    const dateFilter = {
+      ...(startDate && { gte: new Date(startDate) }),
+      ...(endDate && { lte: new Date(endDate) }),
+    };
 
     return await prisma.journalEntry.findMany({
       where: {
-        OR: [
-          {
-            debitAccountId: accountId,
-            journal: { businessId, date: where.journal.date },
-          },
-          {
-            creditAccountId: accountId,
-            journal: { businessId, date: where.journal.date },
-          },
-        ],
+        journal: {
+          businessId,
+          ...(Object.keys(dateFilter).length > 0 && { date: dateFilter }),
+        },
+        OR: [{ debitAccountId: accountId }, { creditAccountId: accountId }],
       },
       include: { journal: true, debitAccount: true, creditAccount: true },
       orderBy: { journal: { date: "asc" } },
     });
   }
 
-  // 2. LAPORAN LABA RUGI (Profit & Loss)
   async getProfitAndLoss(businessId, startDate, endDate) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
     const accounts = await prisma.account.findMany({
       where: { businessId, type: { in: ["REVENUE", "EXPENSE"] } },
       include: {
         debitEntries: {
-          where: { journal: { date: { gte: startDate, lte: endDate } } },
+          where: { journal: { date: { gte: start, lte: end } } },
         },
         creditEntries: {
-          where: { journal: { date: { gte: startDate, lte: endDate } } },
+          where: { journal: { date: { gte: start, lte: end } } },
         },
       },
     });
@@ -62,7 +54,7 @@ class ReportService {
         0
       );
 
-      // Revenue bertambah di Credit, Expense bertambah di Debit
+      // Revenue + di Credit, Expense + di Debit
       const balance =
         acc.type === "REVENUE"
           ? creditTotal - debitTotal
@@ -79,56 +71,77 @@ class ReportService {
       totalRevenue,
       totalExpense,
       netProfit: totalRevenue - totalExpense,
+      period: { start, end },
     };
   }
 
-  // 3. NERACA (Balance Sheet)
-  async getBalanceSheet(businessId) {
+  async getBalanceSheet(businessId, endDate = new Date()) {
+    const end = new Date(endDate);
+
+    // Ambil semua akun Asset, Liability, Equity
     const accounts = await prisma.account.findMany({
       where: {
         businessId,
         type: { in: ["ASSET", "LIABILITY", "EQUITY"] },
         isActive: true,
       },
+      include: {
+        debitEntries: { where: { journal: { date: { lte: end } } } },
+        creditEntries: { where: { journal: { date: { lte: end } } } },
+      },
     });
 
-    const assets = accounts.filter((a) => a.type === "ASSET");
-    const liabilities = accounts.filter((a) => a.type === "LIABILITY");
-    const equity = accounts.filter((a) => a.type === "EQUITY");
+    const calculateHistoricalBalance = (acc) => {
+      const d = acc.debitEntries.reduce((s, e) => s + e.debitAmount, 0);
+      const c = acc.creditEntries.reduce((s, e) => s + e.creditAmount, 0);
 
-    const sum = (accs) => accs.reduce((s, a) => s + parseFloat(a.balance), 0);
+      // Asset bertambah di Debit, Liability/Equity bertambah di Credit
+      return acc.type === "ASSET" ? d - c : c - d;
+    };
+
+    const formattedAccounts = accounts.map((acc) => ({
+      ...acc,
+      calculatedBalance: calculateHistoricalBalance(acc),
+    }));
+
+    const assets = formattedAccounts.filter((a) => a.type === "ASSET");
+    const liabilities = formattedAccounts.filter((a) => a.type === "LIABILITY");
+    const equity = formattedAccounts.filter((a) => a.type === "EQUITY");
+
+    const sum = (items) => items.reduce((s, a) => s + a.calculatedBalance, 0);
 
     return {
       assets: { items: assets, total: sum(assets) },
       liabilities: { items: liabilities, total: sum(liabilities) },
       equity: { items: equity, total: sum(equity) },
-      isBalanced: sum(assets) === sum(liabilities) + sum(equity),
+      isBalanced:
+        Math.abs(sum(assets) - (sum(liabilities) + sum(equity))) < 0.01, // Avoid float precision issues
+      asOf: end,
     };
   }
 
-  // 4. ANALISIS BEP & ROI
-  async getFinancialRatios(businessId) {
-    const pl = await this.getProfitAndLoss(
-      businessId,
-      new Date(new Date().getFullYear(), 0, 1),
-      new Date()
-    );
-    const bs = await this.getBalanceSheet(businessId);
+  async getFinancialRatios(businessId, startDate, endDate) {
+    // Gunakan fungsi yang sudah ada agar logika perhitungan tunggal
+    const pl = await this.getProfitAndLoss(businessId, startDate, endDate);
+    const bs = await this.getBalanceSheet(businessId, endDate);
 
-    // Asumsi: Fixed Cost diambil dari kategori beban tertentu (misal: Gaji, Sewa)
-    // Di sini kita sederhanakan: Total Expense sebagai proksi
-    const fixedCosts = pl.totalExpense * 0.6; // Contoh asumsi 60% expense adalah fixed
+    // Asumsi Fixed & Variable Cost (bisa disempurnakan dengan kategori akun di masa depan)
+    const fixedCosts = pl.totalExpense * 0.6;
     const variableCosts = pl.totalExpense * 0.4;
-    const revenue = pl.totalRevenue;
 
-    // BEP Formula: Fixed Cost / (1 - (Variable Cost / Revenue))
-    const bep = revenue > 0 ? fixedCosts / (1 - variableCosts / revenue) : 0;
-
-    // ROI Formula: (Net Profit / Total Asset) * 100
+    const bep =
+      pl.totalRevenue > 0
+        ? fixedCosts / (1 - variableCosts / pl.totalRevenue)
+        : 0;
     const roi =
       bs.assets.total > 0 ? (pl.netProfit / bs.assets.total) * 100 : 0;
 
-    return { bep, roi, netProfit: pl.netProfit, totalAssets: bs.assets.total };
+    return {
+      ...pl, // Sertakan data P&L agar AI tidak perlu hitung ulang
+      totalAssets: bs.assets.total,
+      bep: Math.round(bep),
+      roi: parseFloat(roi.toFixed(2)),
+    };
   }
 
   async exportProfitLossExcel(businessId, data, filters) {
