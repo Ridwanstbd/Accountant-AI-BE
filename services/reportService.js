@@ -55,11 +55,11 @@ class ReportService {
 
     const report = accounts.map((acc) => {
       const debitTotal = acc.debitEntries.reduce(
-        (sum, e) => sum + e.debitAmount,
+        (sum, e) => sum + Number(e.debitAmount || 0),
         0
       );
       const creditTotal = acc.creditEntries.reduce(
-        (sum, e) => sum + e.creditAmount,
+        (sum, e) => sum + Number(e.creditAmount || 0),
         0
       );
 
@@ -101,10 +101,15 @@ class ReportService {
     });
 
     const calculateHistoricalBalance = (acc) => {
-      const d = acc.debitEntries.reduce((s, e) => s + e.debitAmount, 0);
-      const c = acc.creditEntries.reduce((s, e) => s + e.creditAmount, 0);
+      const d = acc.debitEntries.reduce(
+        (s, e) => s + Number(e.debitAmount || 0),
+        0
+      );
+      const c = acc.creditEntries.reduce(
+        (s, e) => s + Number(e.creditAmount || 0),
+        0
+      );
 
-      // Asset bertambah di Debit, Liability/Equity bertambah di Credit
       return acc.type === "ASSET" ? d - c : c - d;
     };
 
