@@ -355,20 +355,7 @@ class RecommendationBusinessService {
       data;
 
     return await this.prisma.monthlyAIRecommendation.create({
-      where: {
-        business_year_month: {
-          businessId,
-          year: parseInt(year),
-          month: parseInt(month),
-        },
-      },
-      update: {
-        recommendationType,
-        recommendationText,
-        isCustom: false,
-        updatedAt: new Date(),
-      },
-      create: {
+      data: {
         businessId,
         year: parseInt(year),
         month: parseInt(month),
@@ -544,23 +531,11 @@ class RecommendationBusinessService {
     const { businessId, year, month, recommendationType, recommendationText } =
       data;
 
-    return await this.prisma.monthlyAIRecommendation.upsert({
-      where: {
-        business_year_month: {
-          businessId,
-          year,
-          month,
-        },
-      },
-      update: {
-        recommendationType,
-        recommendationText,
-        updatedAt: new Date(),
-      },
-      create: {
+    return await this.prisma.monthlyAIRecommendation.create({
+      data: {
         businessId,
-        year,
-        month,
+        year: parseInt(year),
+        month: parseInt(month),
         recommendationType,
         recommendationText,
         isCustom: false,
