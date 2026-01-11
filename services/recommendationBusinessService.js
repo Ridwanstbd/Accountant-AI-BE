@@ -354,7 +354,7 @@ class RecommendationBusinessService {
     const { businessId, year, month, recommendationType, recommendationText } =
       data;
 
-    return await this.prisma.monthlyAIRecommendation.upsert({
+    return await this.prisma.monthlyAIRecommendation.create({
       where: {
         business_year_month: {
           businessId,
