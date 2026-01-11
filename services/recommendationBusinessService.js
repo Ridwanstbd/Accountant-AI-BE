@@ -6,6 +6,7 @@ const {
   generateFinancialSummary,
   determineRecommendationType,
 } = require("../utils/financial");
+const reportService = require("./reportService");
 
 class RecommendationBusinessService {
   constructor() {
@@ -15,7 +16,7 @@ class RecommendationBusinessService {
 
   async generateMonthlyRecommendation(businessId, year, month) {
     try {
-      // 1. Validate if recommendation already exists for this month
+      // Validasi cache (agar tidak generate ulang jika data masih fresh)
       const existingRecommendation = await this.findExistingRecommendation(
         businessId,
         year,
@@ -29,42 +30,53 @@ class RecommendationBusinessService {
         return {
           recommendation: existingRecommendation,
           isNew: false,
-          message: "Rekomendasi untuk bulan ini sudah ada",
+          message: "Rekomendasi untuk bulan ini sudah ada dan masih relevan",
         };
       }
 
-      // 2. Get financial data for the specified month
-      const financialData = await this.getFinancialDataForMonth(
+      // Ambil rentang tanggal bulan tersebut
+      const { startDate, endDate } = getMonthDateRange(year, month);
+
+      // Ini mengembalikan: totalRevenue, totalExpense, netProfit, totalAssets, bep, roi
+      const financialMetrics = await reportService.getFinancialRatios(
         businessId,
-        year,
-        month
+        startDate,
+        endDate
       );
 
-      // // 3. Validate if there's enough data to generate recommendation
-      // if (!this.hasEnoughDataForRecommendation(financialData)) {
-      //   throw new Error("Data keuangan tidak cukup untuk membuat rekomendasi");
-      // }
+      // Tambahkan data jumlah transaksi (opsional sebagai context tambahan)
+      const transactionCount = await this.prisma.journalEntry.count({
+        where: {
+          journal: { businessId, date: { gte: startDate, lte: endDate } },
+        },
+      });
 
-      // 4. Generate AI recommendation
-      const aiResult = await this.generateAIRecommendation(
-        financialData,
-        month,
-        year
+      const fullFinancialData = {
+        ...financialMetrics,
+        transactionCount,
+      };
+
+      // 4. Generate AI recommendation menggunakan analyzeFinancialData (Output JSON)
+      const aiAnalysis = await this.aiService.analyzeFinancialData(
+        fullFinancialData
       );
 
-      // 5. Save recommendation to database
+      // 5. Simpan ke Database
+      // Karena aiAnalysis berbentuk objek, kita simpan 'reasoning' atau gabungan insight ke kolom text
       const savedRecommendation = await this.saveRecommendation({
         businessId,
         year,
         month,
-        ...aiResult,
-        financialSummary: financialData.summary,
+        recommendationType: aiAnalysis.recommendedType,
+        recommendationText: aiAnalysis.reasoning, // Simpan alasan utama
+        keyInsights: aiAnalysis.keyInsights, // Jika schema DB mendukung JSON, simpan ini
+        priority: aiAnalysis.priority,
       });
 
       return {
         recommendation: savedRecommendation,
-        financialSummary: financialData.processed,
-        aiRawOutput: aiResult.aiRecommendationText,
+        financialMetrics: fullFinancialData,
+        aiFullAnalysis: aiAnalysis,
         isNew: true,
       };
     } catch (error) {
@@ -81,69 +93,57 @@ class RecommendationBusinessService {
       month,
       includeFinancialData = false,
       userId = null,
-      aiOptions = {},
     } = params;
 
     try {
-      let finalPrompt = prompt;
-      let financialContext = null;
-
+      let financialContext = "";
       const targetYear = year || new Date().getFullYear();
       const targetMonth = month || new Date().getMonth() + 1;
+      const { startDate, endDate } = getMonthDateRange(targetYear, targetMonth);
 
       if (includeFinancialData) {
-        const financialData = await this.getFinancialDataForMonth(
+        // Ambil data rasio untuk context AI
+        const metrics = await reportService.getFinancialRatios(
           businessId,
-          targetYear,
-          targetMonth
+          startDate,
+          endDate
         );
-        financialContext = financialData.summary;
-        // PROMPT: Bahasa Inggris, INSTRUKSI: Bahasa Indonesia
-        finalPrompt = `Based on the following financial data: \n${financialContext}\n\nQuestion: ${prompt}. Please answer in Indonesian language.`;
+
+        financialContext = `
+          Context Financial Data (${targetMonth}/${targetYear}):
+          - Revenue: Rp${metrics.totalRevenue.toLocaleString()}
+          - Expense: Rp${metrics.totalExpense.toLocaleString()}
+          - Net Profit: Rp${metrics.netProfit.toLocaleString()}
+          - ROI: ${metrics.roi}%
+          - BEP: Rp${metrics.bep.toLocaleString()}
+        `;
       }
 
-      const aiRecommendationText = await this.aiService.generateRecommendation(
-        finalPrompt,
-        aiOptions
+      // Kirim ke AI Service
+      const aiResponse = await this.aiService.generateCustomRecommendation(
+        prompt,
+        {
+          includeFinancialContext: includeFinancialData,
+          financialData: financialContext,
+          recommendationType: "General",
+        }
       );
 
-      const recommendationType =
-        determineRecommendationType(aiRecommendationText);
+      // Simpan sebagai custom recommendation
+      const saved = await this.prisma.monthlyAIRecommendation.create({
+        data: {
+          businessId,
+          year: targetYear,
+          month: targetMonth,
+          recommendationType: "General",
+          recommendationText: aiResponse,
+          isCustom: true,
+          customPrompt: prompt,
+          userId: userId,
+        },
+      });
 
-      const savedRecommendation =
-        await this.prisma.monthlyAIRecommendation.upsert({
-          where: {
-            business_year_month: {
-              businessId,
-              year: targetYear,
-              month: targetMonth,
-            },
-          },
-          update: {
-            recommendationType,
-            recommendationText: aiRecommendationText,
-            isCustom: true,
-            customPrompt: prompt,
-            userId: userId,
-            updatedAt: new Date(),
-          },
-          create: {
-            businessId,
-            year: targetYear,
-            month: targetMonth,
-            recommendationType,
-            recommendationText: aiRecommendationText,
-            isCustom: true,
-            customPrompt: prompt,
-            userId: userId,
-          },
-        });
-
-      return {
-        recommendation: savedRecommendation,
-        originalPrompt: prompt,
-        aiRawOutput: aiRecommendationText,
-      };
+      return { recommendation: saved, aiRawOutput: aiResponse };
     } catch (error) {
       throw new Error(
         `Failed to generate custom recommendation: ${error.message}`
@@ -384,8 +384,8 @@ class RecommendationBusinessService {
     return await this.prisma.monthlyAIRecommendation.findFirst({
       where: {
         businessId,
-        year: year,
-        month: month,
+        year: parseInt(year),
+        month: parseInt(month),
         isActive: true,
         isCustom: false,
       },
@@ -394,16 +394,8 @@ class RecommendationBusinessService {
   }
 
   shouldRegenerateRecommendation(recommendation) {
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-
-    // Always allow regeneration if older than 1 day
-    if (recommendation.generatedAt < oneDayAgo) return true;
-
-    // Don't regenerate if within last hour
-    if (recommendation.generatedAt > oneHourAgo) return false;
-
-    return true;
+    return recommendation.generatedAt < oneDayAgo;
   }
 
   async getFinancialDataForMonth(businessId, year, month) {
@@ -424,18 +416,6 @@ class RecommendationBusinessService {
     };
   }
 
-  hasEnoughDataForRecommendation(financialData) {
-    const { processed } = financialData;
-
-    // Minimum criteria for generating recommendation
-    return (
-      processed.totalRevenue > 0 ||
-      processed.totalExpense > 0 ||
-      (processed.transactionSummaries &&
-        processed.transactionSummaries.length >= 1)
-    );
-  }
-
   async generateAIRecommendation(financialData, month, year) {
     const aiRecommendationText = await this.aiService.generateRecommendation(
       financialData.summary
@@ -450,20 +430,32 @@ class RecommendationBusinessService {
   }
 
   async saveRecommendation(data) {
-    const {
-      businessId,
-      year,
-      month,
-      aiRecommendationText,
-      recommendationType,
-    } = data;
+    const { businessId, year, month, recommendationType, recommendationText } =
+      data;
 
-    return await this.upsertMonthlyRecommendation({
-      businessId,
-      year,
-      month,
-      recommendationType,
-      recommendationText: aiRecommendationText,
+    return await this.prisma.monthlyAIRecommendation.upsert({
+      where: {
+        business_year_month: {
+          businessId,
+          year: parseInt(year),
+          month: parseInt(month),
+        },
+      },
+      update: {
+        recommendationType,
+        recommendationText,
+        isCustom: false,
+        updatedAt: new Date(),
+      },
+      create: {
+        businessId,
+        year: parseInt(year),
+        month: parseInt(month),
+        recommendationType,
+        recommendationText,
+        isCustom: false,
+        isActive: true,
+      },
     });
   }
 
