@@ -285,6 +285,5 @@ model MonthlyAIRecommendation {
 
   business             Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
-  @@unique([businessId, year, month], name: "business_year_month") // Unique per business, year, month
   @@map("monthly_ai_recommendations")
 }
