@@ -30,6 +30,8 @@ class ReportService {
 
     const start = new Date(startDate);
     const end = new Date(endDate);
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
 
     if (!isValidDate(start) || !isValidDate(end)) {
       console.error("DEBUG: StartDate:", startDate, "EndDate:", endDate);
@@ -86,6 +88,7 @@ class ReportService {
 
   async getBalanceSheet(businessId, endDate = new Date()) {
     const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
 
     // Ambil semua akun Asset, Liability, Equity
     const accounts = await prisma.account.findMany({
