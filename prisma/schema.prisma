@@ -285,5 +285,6 @@ model MonthlyAIRecommendation {
 
   business             Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
+  @@index([businessId])
   @@map("monthly_ai_recommendations")
 }
