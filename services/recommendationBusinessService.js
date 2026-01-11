@@ -14,7 +14,12 @@ class RecommendationBusinessService {
     this.aiService = new AIService();
   }
 
-  async generateMonthlyRecommendation(businessId, year, month) {
+  async generateMonthlyRecommendation(
+    businessId,
+    year,
+    month,
+    forceRegenerate = false
+  ) {
     try {
       // Validasi cache (agar tidak generate ulang jika data masih fresh)
       const existingRecommendation = await this.findExistingRecommendation(
@@ -24,13 +29,14 @@ class RecommendationBusinessService {
       );
 
       if (
+        !forceRegenerate &&
         existingRecommendation &&
         !this.shouldRegenerateRecommendation(existingRecommendation)
       ) {
         return {
           recommendation: existingRecommendation,
           isNew: false,
-          message: "Rekomendasi untuk bulan ini sudah ada dan masih relevan",
+          message: "Rekomendasi masih relevan (cache)",
         };
       }
       const targetYear = parseInt(year);
@@ -449,7 +455,7 @@ class RecommendationBusinessService {
       update: {
         recommendationType,
         recommendationText,
-        isCustom: false,
+        generatedAt: new Date(),
         updatedAt: new Date(),
       },
       create: {
@@ -460,6 +466,7 @@ class RecommendationBusinessService {
         recommendationText,
         isCustom: false,
         isActive: true,
+        generatedAt: new Date(),
       },
     });
   }

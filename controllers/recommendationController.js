@@ -13,7 +13,7 @@ class RecommendationController {
 
   async generateMonthlyRecommendation(req, res) {
     try {
-      const { year, month } = req.body;
+      const { year, month, force } = req.body;
 
       const targetYear = parseInt(year) || new Date().getFullYear();
       const targetMonth = parseInt(month) || new Date().getMonth() + 1;
@@ -22,7 +22,8 @@ class RecommendationController {
         await this.recommendationService.generateMonthlyRecommendation(
           this.getBid(req),
           targetYear,
-          targetMonth
+          targetMonth,
+          force === true
         );
 
       res.status(200).json({ success: true, data: result });
