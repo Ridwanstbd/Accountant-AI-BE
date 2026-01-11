@@ -356,8 +356,17 @@ const validateMonthlyParams = (year, month) => {
 };
 
 const getMonthDateRange = (year, month) => {
-  const startDate = new Date(year, month - 1, 1); // Month is 0-indexed
-  const endDate = new Date(year, month, 0); // Last day of the month
+  // Konversi ke number untuk memastikan keamanan
+  const y = parseInt(year);
+  const m = parseInt(month);
+
+  // Validasi dasar
+  if (isNaN(y) || isNaN(m)) {
+    throw new Error(`Invalid Year/Month: year=${year}, month=${month}`);
+  }
+
+  const startDate = new Date(y, m - 1, 1, 0, 0, 0); // Jam 00:00:00
+  const endDate = new Date(y, m, 0, 23, 59, 59); // Jam 23:59:59
 
   return { startDate, endDate };
 };

@@ -33,11 +33,16 @@ class RecommendationBusinessService {
           message: "Rekomendasi untuk bulan ini sudah ada dan masih relevan",
         };
       }
+      const targetYear = parseInt(year);
+      const targetMonth = parseInt(month);
 
-      // Ambil rentang tanggal bulan tersebut
-      const { startDate, endDate } = getMonthDateRange(year, month);
+      if (!targetYear || !targetMonth) {
+        throw new Error("Tahun dan bulan diperlukan dan harus valid");
+      }
 
-      // Ini mengembalikan: totalRevenue, totalExpense, netProfit, totalAssets, bep, roi
+      const { startDate, endDate } = getMonthDateRange(targetYear, targetMonth);
+
+      // Kirim objek Date yang sudah pasti valid ke reportService
       const financialMetrics = await reportService.getFinancialRatios(
         businessId,
         startDate,

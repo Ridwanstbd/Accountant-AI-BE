@@ -26,8 +26,17 @@ class ReportService {
   }
 
   async getProfitAndLoss(businessId, startDate, endDate) {
+    const isValidDate = (d) => d instanceof Date && !isNaN(d);
+
     const start = new Date(startDate);
     const end = new Date(endDate);
+
+    if (!isValidDate(start) || !isValidDate(end)) {
+      console.error("DEBUG: StartDate:", startDate, "EndDate:", endDate);
+      throw new Error(
+        "Laporan tidak dapat diproses karena rentang tanggal tidak valid"
+      );
+    }
 
     const accounts = await prisma.account.findMany({
       where: { businessId, type: { in: ["REVENUE", "EXPENSE"] } },
