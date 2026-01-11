@@ -13,8 +13,9 @@ class RecommendationController {
 
   async generateMonthlyRecommendation(req, res) {
     try {
-      const { year, month, force } = req.body;
+      const { year, month } = req.body;
 
+      // Pastikan konversi ke Number dilakukan di tingkat Controller sebelum masuk ke Service
       const targetYear = parseInt(year) || new Date().getFullYear();
       const targetMonth = parseInt(month) || new Date().getMonth() + 1;
 
@@ -22,8 +23,7 @@ class RecommendationController {
         await this.recommendationService.generateMonthlyRecommendation(
           this.getBid(req),
           targetYear,
-          targetMonth,
-          force === true
+          targetMonth
         );
 
       res.status(200).json({ success: true, data: result });

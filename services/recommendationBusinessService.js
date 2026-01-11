@@ -14,31 +14,8 @@ class RecommendationBusinessService {
     this.aiService = new AIService();
   }
 
-  async generateMonthlyRecommendation(
-    businessId,
-    year,
-    month,
-    forceRegenerate = false
-  ) {
+  async generateMonthlyRecommendation(businessId, year, month) {
     try {
-      // Validasi cache (agar tidak generate ulang jika data masih fresh)
-      const existingRecommendation = await this.findExistingRecommendation(
-        businessId,
-        year,
-        month
-      );
-
-      if (
-        !forceRegenerate &&
-        existingRecommendation &&
-        !this.shouldRegenerateRecommendation(existingRecommendation)
-      ) {
-        return {
-          recommendation: existingRecommendation,
-          isNew: false,
-          message: "Rekomendasi masih relevan (cache)",
-        };
-      }
       const targetYear = parseInt(year);
       const targetMonth = parseInt(month);
 
@@ -322,55 +299,6 @@ class RecommendationBusinessService {
     }
   }
 
-  async regenerateRecommendation(businessId, id, forceRegenerate = false) {
-    try {
-      // Get existing recommendation and ensure it belongs to the business
-      const existingRecommendation =
-        await this.prisma.monthlyAIRecommendation.findFirst({
-          where: {
-            id,
-            businessId,
-          },
-        });
-
-      if (!existingRecommendation) {
-        throw new Error(
-          "Rekomendasi tidak ditemukan atau tidak memiliki akses"
-        );
-      }
-
-      // Check if recently generated (smart caching)
-      if (
-        !forceRegenerate &&
-        !this.shouldRegenerateRecommendation(existingRecommendation)
-      ) {
-        return {
-          recommendation: existingRecommendation,
-          regenerated: false,
-          message: "Rekomendasi masih fresh, tidak perlu di-regenerate",
-        };
-      }
-
-      // Archive old recommendation
-      await this.archiveRecommendation(existingRecommendation);
-
-      // Generate new recommendation
-      const result = await this.generateMonthlyRecommendation(
-        businessId,
-        existingRecommendation.year,
-        existingRecommendation.month
-      );
-
-      return {
-        ...result,
-        regenerated: true,
-        previousRecommendation: existingRecommendation,
-      };
-    } catch (error) {
-      throw new Error(`Failed to regenerate recommendation: ${error.message}`);
-    }
-  }
-
   async getServiceStatus(businessId) {
     try {
       const [dbHealth, aiHealth, systemStats] = await Promise.all([
@@ -389,24 +317,6 @@ class RecommendationBusinessService {
     } catch (error) {
       throw new Error(`Failed to get service status: ${error.message}`);
     }
-  }
-
-  async findExistingRecommendation(businessId, year, month) {
-    return await this.prisma.monthlyAIRecommendation.findFirst({
-      where: {
-        businessId,
-        year: parseInt(year),
-        month: parseInt(month),
-        isActive: true,
-        isCustom: false,
-      },
-      orderBy: { generatedAt: "desc" },
-    });
-  }
-
-  shouldRegenerateRecommendation(recommendation) {
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    return recommendation.generatedAt < oneDayAgo;
   }
 
   async getFinancialDataForMonth(businessId, year, month) {
@@ -444,7 +354,7 @@ class RecommendationBusinessService {
     const { businessId, year, month, recommendationType, recommendationText } =
       data;
 
-    return await this.prisma.monthlyAIRecommendation.upsert({
+    return await this.prisma.monthlyAIRecommendation.create({
       where: {
         business_year_month: {
           businessId,
@@ -455,7 +365,7 @@ class RecommendationBusinessService {
       update: {
         recommendationType,
         recommendationText,
-        generatedAt: new Date(),
+        isCustom: false,
         updatedAt: new Date(),
       },
       create: {
@@ -466,7 +376,6 @@ class RecommendationBusinessService {
         recommendationText,
         isCustom: false,
         isActive: true,
-        generatedAt: new Date(),
       },
     });
   }
