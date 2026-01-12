@@ -342,6 +342,122 @@ class JournalService {
     });
   }
 
+  async updateJournal(businessId, id, data) {
+    const { entries, type, date, reference } = data;
+
+    // 1. Ambil data jurnal lama beserta entry-nya
+    const oldJournal = await prisma.journal.findFirst({
+      where: { id, businessId },
+      include: { entries: true },
+    });
+
+    if (!oldJournal) throw new Error("Jurnal tidak ditemukan");
+
+    return await prisma.$transaction(async (tx) => {
+      // 2. JIKA POSTED: Lakukan REVERSAL saldo akun lama
+      if (oldJournal.status === "POSTED") {
+        for (const entry of oldJournal.entries) {
+          if (entry.debitAccountId) {
+            const acc = await tx.account.findUnique({
+              where: { id: entry.debitAccountId },
+            });
+            const isNormalDebit = ["ASSET", "EXPENSE"].includes(acc.type);
+            await tx.account.update({
+              where: { id: entry.debitAccountId },
+              data: {
+                balance: isNormalDebit
+                  ? { decrement: entry.debitAmount }
+                  : { increment: entry.debitAmount },
+              },
+            });
+          }
+          if (entry.creditAccountId) {
+            const acc = await tx.account.findUnique({
+              where: { id: entry.creditAccountId },
+            });
+            const isNormalCredit = ["LIABILITY", "EQUITY", "REVENUE"].includes(
+              acc.type
+            );
+            await tx.account.update({
+              where: { id: entry.creditAccountId },
+              data: {
+                balance: isNormalCredit
+                  ? { decrement: entry.creditAmount }
+                  : { increment: entry.creditAmount },
+              },
+            });
+          }
+        }
+      }
+
+      // 3. Hapus entries lama dan update Header Jurnal
+      await tx.journalEntry.deleteMany({ where: { journalId: id } });
+
+      const totalAmount = entries.reduce(
+        (sum, e) => sum + parseFloat(e.debitAmount || 0),
+        0
+      );
+      const updatedJournal = await tx.journal.update({
+        where: { id },
+        data: {
+          date: new Date(date),
+          reference,
+          type,
+          totalAmount,
+        },
+      });
+
+      // 4. Buat entries baru & JIKA POSTED: Update saldo akun baru secara sinkron
+      for (const entry of entries) {
+        const newEntry = await tx.journalEntry.create({
+          data: {
+            journalId: id,
+            debitAccountId: entry.debitAccountId || null,
+            creditAccountId: entry.creditAccountId || null,
+            description: entry.description || reference,
+            debitAmount: parseFloat(entry.debitAmount || 0),
+            creditAmount: parseFloat(entry.creditAmount || 0),
+          },
+        });
+
+        if (oldJournal.status === "POSTED") {
+          if (entry.debitAccountId) {
+            const acc = await tx.account.findUnique({
+              where: { id: entry.debitAccountId },
+            });
+            const isNormalDebit = ["ASSET", "EXPENSE"].includes(acc.type);
+            await tx.account.update({
+              where: { id: entry.debitAccountId },
+              data: {
+                balance: isNormalDebit
+                  ? { increment: entry.debitAmount }
+                  : { decrement: entry.debitAmount },
+              },
+            });
+          }
+          if (entry.creditAccountId) {
+            const acc = await tx.account.findUnique({
+              where: { id: entry.creditAccountId },
+            });
+            const isNormalCredit = ["LIABILITY", "EQUITY", "REVENUE"].includes(
+              acc.type
+            );
+            await tx.account.update({
+              where: { id: entry.creditAccountId },
+              data: {
+                balance: isNormalCredit
+                  ? { increment: entry.creditAmount }
+                  : { decrement: entry.creditAmount },
+              },
+            });
+          }
+        }
+      }
+
+      return updatedJournal;
+    });
+  }
+
   async deleteJournal(businessId, id) {
     const journal = await prisma.journal.findFirst({
       where: { id, businessId },

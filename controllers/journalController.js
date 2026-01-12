@@ -89,6 +89,28 @@ class JournalController {
     }
   }
 
+  async updateJournal(req, res, next) {
+    try {
+      const businessId = req.headers["x-business-id"];
+      const { id } = req.params;
+
+      const journal = await journalService.updateJournal(
+        businessId,
+        id,
+        req.body
+      );
+
+      res.status(200).json({
+        success: true,
+        message:
+          "Journal updated successfully and account balances synchronized",
+        data: journal,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async deleteJournal(req, res, next) {
     try {
       const businessId = req.headers["x-business-id"];

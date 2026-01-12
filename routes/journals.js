@@ -28,6 +28,12 @@ router.post(
   journalController.createSalesJournal
 );
 
+router.put(
+  "/:id",
+  validate(createJournalSchema, "body"),
+  journalController.updateJournal
+);
+
 router.get("/:id", journalController.getJournalById);
 router.patch("/:id/post", journalController.postJournal);
 router.delete("/:id", journalController.deleteJournal);
